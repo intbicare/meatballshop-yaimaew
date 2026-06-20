@@ -949,7 +949,7 @@ function updateQR(total){
     lastQrTotal = total;
 
     document.querySelectorAll(".qr-image").forEach((image) => {
-        image.src = `https://promptpay.io/0651167368/${total}.png`;
+        image.src = `/qr/${total}`;
     });
 }
 
@@ -986,9 +986,9 @@ async function submitOrder(){
 
     updateSubmitStatus(t("sending"));
 
-    const slipImage = createSlipImage(payload);
-
     try{
+        const slipImage = await createSlipImage(payload);
+
         const response = await fetch("/api/orders", {
             method: "POST",
             headers: {
@@ -1042,7 +1042,7 @@ function buildOrderPayload(){
     };
 }
 
-function createSlipImage(order){
+async function createSlipImage(order){
     const canvas = document.createElement("canvas");
     canvas.width = 400;
     canvas.height = 560;
@@ -1092,7 +1092,47 @@ function createSlipImage(order){
     ctx.fillText(t("totalSlip"), 18, y);
     ctx.fillText(`฿${formatBaht.format(order.total)}`, 260, y);
 
+    y += 42;
+
+    const qrImage =
+        await loadImage(`/qr/${order.total}`);
+
+    if(qrImage){
+        const qrSize = 160;
+        const qrX =
+            Math.floor((canvas.width - qrSize) / 2);
+
+        ctx.drawImage(
+            qrImage,
+            qrX,
+            y,
+            qrSize,
+            qrSize
+        );
+
+        y += qrSize + 10;
+    }
+
+    ctx.font = "700 14px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(
+        order.orderNumber,
+        canvas.width / 2,
+        y
+    );
+    ctx.textAlign = "left";
+
     return canvas.toDataURL("image/png");
+}
+
+function loadImage(src){
+    return new Promise((resolve) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.onload = () => resolve(image);
+        image.onerror = () => resolve(null);
+        image.src = src;
+    });
 }
 
 function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight){

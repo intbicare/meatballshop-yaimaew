@@ -22,6 +22,69 @@ limit: "10mb"
 
 app.use("/orders", express.static(path.join(__dirname, "generated", "orders")));
 
+app.get("/qr/:amount",async (req,res)=>{
+
+
+const amount =
+    Number(req.params.amount);
+
+if(
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    amount > 5000
+){
+
+    return res.status(400).send(
+        "Invalid amount"
+    );
+
+}
+
+try{
+
+    const qrResponse =
+        await fetch(
+            `https://promptpay.io/0651167368/${amount}.png`
+        );
+
+    if(!qrResponse.ok){
+
+        return res.status(502).send(
+            "Cannot load QR"
+        );
+
+    }
+
+    const qrBuffer =
+        Buffer.from(
+            await qrResponse.arrayBuffer()
+        );
+
+    res.setHeader(
+        "Content-Type",
+        "image/png"
+    );
+
+    res.setHeader(
+        "Cache-Control",
+        "public, max-age=86400"
+    );
+
+    res.send(qrBuffer);
+
+}catch(error){
+
+    console.log(error);
+
+    res.status(502).send(
+        "Cannot load QR"
+    );
+
+}
+
+
+});
+
 app.get("/",(req,res)=>{
 
 
