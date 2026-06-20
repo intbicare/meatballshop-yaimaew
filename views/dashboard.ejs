@@ -439,10 +439,10 @@ input{
     color:var(--ink);
 }
 
-.qr-download-link{
+.shop-slip-link{
     display:grid;
     place-items:center;
-    color:#fff;
+    color:var(--ink);
     text-decoration:none;
 }
 
@@ -728,6 +728,7 @@ const cart = {};
 let orderNumber = "";
 let currentLanguage = "th";
 let lastQrTotal = null;
+let currentOrderText = "";
 
 const maxQrTotal = 5000;
 
@@ -745,15 +746,18 @@ const translations = {
         emptyCart: "ยังไม่มีสินค้า",
         totalLabel: "รวม",
         baht: "บาท",
-        paymentNote: "สแกนจ่าย หรือดาวน์โหลด QR Code",
+        paymentNote: "สแกนจ่าย แล้วกดส่งออเดอร์ให้ร้าน",
         massOrderNote: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
-        downloadQr: "ดาวน์โหลด QR Code",
-        qrReady: "ดาวน์โหลด QR Code ได้แล้ว",
+        submitOrder: "ส่งออเดอร์ให้ร้าน",
+        copyOrderText: "คัดลอกข้อความออเดอร์",
+        copiedOrderText: "คัดลอกข้อความออเดอร์แล้ว",
+        downloadSlip: "ดาวน์โหลดรูปออเดอร์",
+        orderPrepared: "คัดลอกข้อความ หรือดาวน์โหลดรูปเพื่อส่งให้ร้านทาง Facebook",
         addItemFirst: "เพิ่มสินค้าก่อน",
         addItemAlert: "กรุณาเลือกสินค้าก่อน",
         massOrderAlert: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
         sending: "กำลังส่งออเดอร์...",
-        sent: "ดาวน์โหลด QR Code ได้แล้ว",
+        sent: "เตรียมออเดอร์แล้ว",
         failed: "ส่งออเดอร์ไม่สำเร็จ กรุณาลองอีกครั้ง",
         itemUnit: "รายการ",
         slipTitle: "ใบออเดอร์ร้าน",
@@ -773,15 +777,18 @@ const translations = {
         emptyCart: "Your cart is empty",
         totalLabel: "Total",
         baht: "baht",
-        paymentNote: "Scan to pay or download the QR code.",
+        paymentNote: "Scan to pay, then send the order to the shop.",
         massOrderNote: "Orders over 5,000 baht need direct shop contact for mass order.",
-        downloadQr: "Download QR code",
-        qrReady: "QR code is ready to download.",
+        submitOrder: "Send order to shop",
+        copyOrderText: "Copy order text",
+        copiedOrderText: "Copied order text",
+        downloadSlip: "Download order image",
+        orderPrepared: "Copy the text or download the image and send it to the shop on Facebook.",
         addItemFirst: "Add item first",
         addItemAlert: "Please add an item first.",
         massOrderAlert: "Orders over 5,000 baht need direct shop contact for mass order.",
         sending: "Sending order...",
-        sent: "QR code is ready to download.",
+        sent: "Order prepared.",
         failed: "Could not send order. Please try again.",
         itemUnit: "items",
         slipTitle: "Shop order slip",
@@ -959,21 +966,73 @@ function updatePaymentState(total){
         note.innerText = isMassOrder ? t("massOrderNote") : t("paymentNote");
     });
 
-    document.querySelectorAll(".qr-download-link").forEach((link) => {
+    document.querySelectorAll(".send-order-action").forEach((button) => {
         if(isMassOrder || total <= 0){
-            link.href = "#";
-            link.classList.add("is-disabled");
-            link.removeAttribute("download");
+            button.disabled = true;
         }else{
-            link.href = `/qr/${total}`;
-            link.download = `${orderNumber || "promptpay"}-qr.png`;
-            link.classList.remove("is-disabled");
+            button.disabled = false;
         }
     });
 }
 
 function clearSubmittedOrder(){
+    currentOrderText = "";
+    document.querySelectorAll(".copy-order-text-btn").forEach((button) => {
+        button.classList.add("d-none");
+    });
+    document.querySelectorAll(".shop-slip-link").forEach((link) => {
+        link.href = "#";
+        link.classList.add("d-none");
+        link.removeAttribute("download");
+    });
     updateDownloadStatus("");
+}
+
+async function prepareOrderForShop(){
+    const order = buildOrderPayload();
+
+    if(!order){
+        alert(t("addItemAlert"));
+        return;
+    }
+
+    if(order.total > maxQrTotal){
+        updateDownloadStatus(t("massOrderAlert"));
+        return;
+    }
+
+    currentOrderText = buildOrderText(order);
+    const slipImage = await createSlipImage(order);
+
+    document.querySelectorAll(".copy-order-text-btn").forEach((button) => {
+        button.classList.remove("d-none");
+    });
+
+    document.querySelectorAll(".shop-slip-link").forEach((link) => {
+        link.href = slipImage;
+        link.download = `${order.orderNumber}.png`;
+        link.classList.remove("d-none");
+    });
+
+    updateDownloadStatus(t("orderPrepared"));
+}
+
+async function copyOrderText(){
+    if(!currentOrderText){
+        return;
+    }
+
+    try{
+        if(navigator.clipboard && window.isSecureContext){
+            await navigator.clipboard.writeText(currentOrderText);
+        }else{
+            fallbackCopyText(currentOrderText);
+        }
+    }catch(error){
+        fallbackCopyText(currentOrderText);
+    }
+
+    updateDownloadStatus(t("copiedOrderText"));
 }
 
 function buildOrderPayload(){
@@ -1003,6 +1062,23 @@ function buildOrderPayload(){
             lineTotal: item.price * item.qty
         }))
     };
+}
+
+function buildOrderText(order){
+    const lines = [
+        shopName,
+        `${t("orderNumberLabel")}: ${order.orderNumber}`,
+        `${t("timeLabel")}: ${formatSlipTime(order.createdAt)}`,
+        "",
+        ...order.items.map((item) => {
+            return `${item.name} ${t("qtyPrefix")}${item.qty} - ฿${formatBaht.format(item.lineTotal)}`;
+        }),
+        "",
+        `${t("totalLabel")}: ฿${formatBaht.format(order.total)}`,
+        t("paidText")
+    ];
+
+    return lines.join("\n");
 }
 
 async function createSlipImage(order){
