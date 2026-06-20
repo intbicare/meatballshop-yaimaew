@@ -12,9 +12,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "csv-parser": "^3.2.1",
     "ejs": "^6.0.1",
-    "express": "^5.2.1",
-    "sqlite3": "^6.0.1"
+    "express": "^5.2.1"
+  },
+  "engines": {
+    "node": ">=22.0.0 <23.0.0"
   }
 }

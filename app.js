@@ -1,5 +1,4 @@
 const express = require("express");
-const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
 const path = require("path");
@@ -8,15 +7,6 @@ const fs = require("fs");
 loadEnvFile();
 
 app.set("trust proxy", true);
-
-const db = new sqlite3.Database(
-    "./database/database.db"
-);
-
-console.log(
-    "DB FILE =",
-    path.resolve("./database/database.db")
-);
 
 app.set("view engine", "ejs");
 
@@ -53,29 +43,23 @@ app.get(
 (req,res)=>{
 
 
-    db.all(
-        `
-        SELECT *
-        FROM products
-        ORDER BY name
-        `,
-        [],
-        (err,products)=>{
-
-            console.log(
-                "PRODUCT COUNT:",
-                products?.length
-            );
+    fs.readFile(
+        path.join(__dirname,"database","products.json"),
+        "utf8",
+        (err,data)=>{
 
             if(err){
 
                 console.log(err);
 
-                return res.send(
-                    err.message
+                return res.status(500).send(
+                    "Cannot load products"
                 );
 
             }
+
+            const products =
+                JSON.parse(data);
 
             res.render(
                 "dashboard",

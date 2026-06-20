@@ -1,0 +1,114 @@
+[
+  {
+    "id": 12,
+    "name": "กุ้งทอด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 15,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026060709074586002/photos/menueditor_item_cf6a87bb0a3b407190621f594d38eb5f_1781357483449404702.jpg"
+  },
+  {
+    "id": 16,
+    "name": "น้ำจิ้มถั่วซีฟู้ด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 10,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061313470408065/photos/menueditor_item_4f799809b90040ed946a2e3ac97b23dc_1781358414617699952.jpeg"
+  },
+  {
+    "id": 6,
+    "name": "ปีกไก่ติดปลายทอด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 15,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026060708542076123/photos/menueditor_item_0bb6ef3191304ad49ab70e9da62e4e77_1780822490298700282.jpg"
+  },
+  {
+    "id": 4,
+    "name": "ลูกชิ้นทอด ไส้กรอกทอดคละไม้ 10 แถม 1",
+    "category": "โปรโมชั่น",
+    "price": 100,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061009322331650/photos/menueditor_item_174e7800836e45d5ba47ebd35b38d71a_1781083874195903782.jpeg"
+  },
+  {
+    "id": 15,
+    "name": "ลูกชิ้นทอด ไส้กรอกทอดคละไม้ 6 ไม้",
+    "category": "โปรโมชั่น",
+    "price": 55,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061009342899028/photos/menueditor_item_880f447835f6464bbdffe78d5bd85f23_1781084174297426376.jpeg"
+  },
+  {
+    "id": 8,
+    "name": "ลูกชิ้นไก่ทอด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 15,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE20260610092040034049/photos/5d0bef2616f840fb8db922811e1fb966_1781083240407204791.png"
+  },
+  {
+    "id": 9,
+    "name": "หมึกทอด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 15,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061009244740155/photos/menueditor_item_2b4300e5bcee41c18ae13519867644c8_1781083464463305746.jpeg"
+  },
+  {
+    "id": 14,
+    "name": "หมึกทอด กุ้งทอด ไส้กรอกพันเบคอนทอด 6 ไม้",
+    "category": "โปรโมชั่น",
+    "price": 85,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061313415874981/photos/menueditor_item_78886d56d83f4f63b36d419e1cb46bf3_1781358145557796293.jpeg"
+  },
+  {
+    "id": 2,
+    "name": "หมึกทอด กุ้งทอด ไส้กรอกพันเบคอนทอด 8 แถม 1",
+    "category": "โปรโมชั่น",
+    "price": 120,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061009281636003/photos/menueditor_item_43ab9d16d29248abb841d9220e6cb8d2_1781083532197588240.jpeg"
+  },
+  {
+    "id": 13,
+    "name": "หมึกไข่",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 70,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026060709164655036/photos/menueditor_item_69f2db0f816447dd992bedf2f002cd88_1781357608237843125.jpg"
+  },
+  {
+    "id": 10,
+    "name": "หมูยอ",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 10,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026060709114723024/photos/menueditor_item_b8e61f9c9a93410a8d372ce77a925fcb_1780823470044057078.jpg"
+  },
+  {
+    "id": 3,
+    "name": "อกไก่ทอด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 10,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE20260610092040019592/photos/b39b38ad695e40e3977cf6dbda99a1bf_1781083240133702574.png"
+  },
+  {
+    "id": 1,
+    "name": "เต้าหู้ปลา",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 10,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026060709135817599/photos/menueditor_item_fd99f43ddcd746db9243046927df1342_1780823539064393872.jpg"
+  },
+  {
+    "id": 11,
+    "name": "เล็บมือไก่ 5 ไม้",
+    "category": "โปรโมชั่น",
+    "price": 65,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026061313443422055/photos/menueditor_item_614dc6cdd72244a3996ffa5e7dabb155_1781358242533097462.jpeg"
+  },
+  {
+    "id": 7,
+    "name": "ไส้กรอกพันเบคอนทอด",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 15,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE20260610092040021266/photos/2e04cf7e35f84c4ea00858ecaa7d247e_1781083240288407012.png"
+  },
+  {
+    "id": 5,
+    "name": "ไส้กรอกแดง",
+    "category": "ของทอดชุบแป้งเครื่องแกง",
+    "price": 10,
+    "image_url": "https://huawei-food-cms.grab.com/item/THITE2026060708515354345/photos/menueditor_item_5a937d71d171424ba3103ce5de74a8f1_1780822138813612130.jpg"
+  }
+]
