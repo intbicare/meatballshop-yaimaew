@@ -1,10 +1,10 @@
 const express = require("express");
 const session = require("express-session");
-const { google } = require("googleapis");
 
 const app = express();
 const path = require("path");
 const fs = require("fs");
+const quickSales = [];
 
 loadEnvFile();
 
@@ -199,7 +199,7 @@ try{
         {
             sales: [],
             summary: emptyQuickSaleSummary(),
-            error: "Cannot load Google Sheet orders.",
+            error: "Cannot load quick sale orders.",
             success: ""
         }
     );
@@ -250,7 +250,7 @@ try{
 
     return renderQuickSaleWithMessage(
         res,
-        "Cannot save sale to Google Sheet.",
+        "Cannot notify Discord. Sale was not saved.",
         ""
     );
 
@@ -547,91 +547,6 @@ res.render(
 
 }
 
-function getSheetTab(){
-
-return process.env.GOOGLE_SHEET_TAB || "Orders";
-
-}
-
-function getQuickSaleSheetRange(){
-
-return `${getSheetTab()}!A:H`;
-
-}
-
-async function getSheetsClient(){
-
-const required = [
-    "GOOGLE_SHEET_ID",
-    "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-    "GOOGLE_PRIVATE_KEY"
-];
-
-required.forEach((key)=>{
-
-    if(!process.env[key]){
-
-        throw new Error(
-            `Missing env ${key}`
-        );
-
-    }
-
-});
-
-const auth =
-    new google.auth.JWT({
-        email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-        scopes: [
-            "https://www.googleapis.com/auth/spreadsheets"
-        ]
-    });
-
-return google.sheets({
-    version: "v4",
-    auth
-});
-
-}
-
-async function ensureQuickSaleHeaders(sheets){
-
-const response =
-    await sheets.spreadsheets.values.get({
-        spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: `${getSheetTab()}!A1:H1`
-    });
-
-const firstRow =
-    response.data.values?.[0] || [];
-
-if(firstRow.length > 0){
-
-    return;
-
-}
-
-await sheets.spreadsheets.values.update({
-    spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: `${getSheetTab()}!A1:H1`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-        values: [[
-            "createdAt",
-            "orderNumber",
-            "channel",
-            "total",
-            "paymentMethod",
-            "status",
-            "itemsText",
-            "updatedAt"
-        ]]
-    }
-});
-
-}
-
 function createQuickSaleOrderNumber(){
 
 const now =
@@ -659,73 +574,37 @@ return `QS-${datePart}-${timePart}-${randomPart}`;
 
 async function appendQuickSale({ amount, paymentMethod }){
 
-const sheets =
-    await getSheetsClient();
-
-await ensureQuickSaleHeaders(sheets);
-
 const now =
     new Date().toISOString();
 
-await sheets.spreadsheets.values.append({
-    spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: getQuickSaleSheetRange(),
-    valueInputOption: "USER_ENTERED",
-    insertDataOption: "INSERT_ROWS",
-    requestBody: {
-        values: [[
-            now,
-            createQuickSaleOrderNumber(),
-            "quick_sale",
-            amount,
-            paymentMethod,
-            "paid",
-            "Quick sale",
-            now
-        ]]
-    }
-});
+const sale = {
+    createdAt: now,
+    orderNumber: createQuickSaleOrderNumber(),
+    channel: "quick_sale",
+    total: amount,
+    paymentMethod,
+    status: "paid",
+    itemsText: "Quick sale",
+    updatedAt: now
+};
 
-}
+await sendQuickSaleDiscordNotification(
+    sale,
+    "created"
+);
 
-async function getAllSheetRows(){
+quickSales.push(sale);
 
-const sheets =
-    await getSheetsClient();
-
-await ensureQuickSaleHeaders(sheets);
-
-const response =
-    await sheets.spreadsheets.values.get({
-        spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: getQuickSaleSheetRange()
-    });
-
-return response.data.values || [];
+return sale;
 
 }
 
 async function getTodayQuickSales(){
 
-const rows =
-    await getAllSheetRows();
-
 const todayKey =
     getLocalDateKey(new Date());
 
-return rows
-    .slice(1)
-    .map((row,index)=>({
-        rowNumber: index + 2,
-        createdAt: row[0] || "",
-        orderNumber: row[1] || "",
-        channel: row[2] || "",
-        total: Number(row[3] || 0),
-        paymentMethod: row[4] || "",
-        status: row[5] || "",
-        itemsText: row[6] || "",
-        updatedAt: row[7] || ""
-    }))
+return quickSales
     .filter((sale)=>{
         return (
             sale.channel === "quick_sale" &&
@@ -746,38 +625,99 @@ if(!orderNumber){
 
 }
 
-const rows =
-    await getAllSheetRows();
-
-const index =
-    rows.findIndex((row)=>{
-        return row[1] === orderNumber;
+const sale =
+    quickSales.find((entry)=>{
+        return entry.orderNumber === orderNumber;
     });
 
-if(index <= 0){
+if(!sale){
 
     throw new Error("Order not found");
 
 }
 
-const rowNumber =
-    index + 1;
+const updatedSale = {
+    ...sale,
+    status: "cancelled",
+    updatedAt: new Date().toISOString()
+};
 
-const sheets =
-    await getSheetsClient();
+await sendQuickSaleDiscordNotification(
+    updatedSale,
+    "cancelled"
+);
 
-await sheets.spreadsheets.values.update({
-    spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: `${getSheetTab()}!F${rowNumber}:H${rowNumber}`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-        values: [[
-            "cancelled",
-            rows[index][6] || "Quick sale",
-            new Date().toISOString()
-        ]]
-    }
-});
+sale.status = updatedSale.status;
+sale.updatedAt = updatedSale.updatedAt;
+
+return sale;
+
+}
+
+async function sendQuickSaleDiscordNotification(sale,action){
+
+if(!process.env.DISCORD_WEBHOOK_URL){
+
+    throw new Error("Missing DISCORD_WEBHOOK_URL");
+
+}
+
+const isCancelled =
+    action === "cancelled";
+
+const response =
+    await fetch(
+        process.env.DISCORD_WEBHOOK_URL,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username: "Quick Sale",
+                content: [
+                    isCancelled ? "Quick sale cancelled" : "Quick sale paid",
+                    `Order: ${sale.orderNumber}`,
+                    `Total: THB ${sale.total}`,
+                    `Payment: ${sale.paymentMethod.toUpperCase()}`
+                ].join("\n"),
+                embeds: [
+                    {
+                        title: isCancelled ?
+                            `Cancelled ${sale.orderNumber}` :
+                            `Paid ${sale.orderNumber}`,
+                        color: isCancelled ? 11739920 : 14790035,
+                        fields: [
+                            {
+                                name: "Total",
+                                value: `THB ${sale.total}`,
+                                inline: true
+                            },
+                            {
+                                name: "Payment",
+                                value: sale.paymentMethod.toUpperCase(),
+                                inline: true
+                            },
+                            {
+                                name: "Status",
+                                value: sale.status,
+                                inline: true
+                            }
+                        ],
+                        timestamp: sale.updatedAt || sale.createdAt
+                    }
+                ]
+            })
+        }
+    );
+
+if(!response.ok){
+
+    throw new Error(
+        `Discord responded ${response.status}`
+    );
+
+}
 
 }
 

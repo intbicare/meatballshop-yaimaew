@@ -53,16 +53,9 @@ Required environment variables:
 ```text
 ADMIN_PASSWORD=
 SESSION_SECRET=
-GOOGLE_SHEET_ID=
-GOOGLE_SERVICE_ACCOUNT_EMAIL=
-GOOGLE_PRIVATE_KEY=
-GOOGLE_SHEET_TAB=Orders
+DISCORD_WEBHOOK_URL=
 ```
 
-The Google Sheet must be shared with the service account email. The app writes quick booth sales to the configured tab with these columns:
+Staff can enter an amount, choose QR or Cash, and press Add Sale. The app sends a Discord message for each quick sale and each cancellation.
 
-```text
-createdAt, orderNumber, channel, total, paymentMethod, status, itemsText, updatedAt
-```
-
-`GOOGLE_PRIVATE_KEY` must keep escaped newlines as `\n`. The app converts them at runtime.
+Important limitation: quick sale rows and today summary are stored in server memory only. They reset when Render restarts or redeploys. Discord is the durable order log for this option.
