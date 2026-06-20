@@ -1066,10 +1066,21 @@ async function prepareOrderForShop(){
         }
 
         if(result.trackingUrl){
+            const locationLines = [];
+
+            if(result.customerLat && result.customerLng){
+                locationLines.push(`Customer lat,lng: ${result.customerLat},${result.customerLng}`);
+            }
+
+            if(result.customerMapUrl){
+                locationLines.push(`Customer map: ${result.customerMapUrl}`);
+            }
+
             currentOrderText = [
                 currentOrderText,
                 "",
-                `Tracking: ${result.trackingUrl}`
+                `Tracking: ${result.trackingUrl}`,
+                ...locationLines
             ].join("\n");
         }
 

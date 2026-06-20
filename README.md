@@ -52,6 +52,14 @@ Online orders use `WEB-YYMMDD-HHMM-XXX`, start as `pending_payment`, and get a p
 
 The tracking page only shows customer-safe order details.
 
+Staff can update online order status at:
+
+```text
+/admin/orders
+```
+
+The customer tracking page stays read-only. When staff changes the status, the tracking page shows the new status after refresh.
+
 ## Admin Quick Sale
 
 Admin route:

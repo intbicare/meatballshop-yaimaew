@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Online Orders</title>
+<style>
+:root{
+    --ink:#171412;
+    --muted:#716a62;
+    --line:#e8e0d7;
+    --paper:#fffaf4;
+    --green:#16784c;
+    --red:#b42318;
+}
+*{
+    box-sizing:border-box;
+}
+body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.shell{
+    width:min(980px,100%);
+    margin:0 auto;
+    padding:14px;
+}
+.topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:14px;
+}
+.nav{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+a,
+button{
+    min-height:40px;
+    border:1px solid #d8c8b9;
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+    font:inherit;
+    font-weight:800;
+    text-decoration:none;
+    padding:9px 11px;
+}
+h1{
+    margin:0;
+    font-size:1.35rem;
+}
+.message{
+    margin:0 0 12px;
+    padding:10px;
+    border-radius:8px;
+    font-weight:750;
+}
+.error{
+    background:#fff0ee;
+    color:var(--red);
+}
+.success{
+    background:#eefbf2;
+    color:var(--green);
+}
+.order{
+    margin-bottom:12px;
+    padding:12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 8px 22px rgba(42,31,20,.08);
+}
+.order-head{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    align-items:flex-start;
+}
+.number{
+    font-size:1.05rem;
+    font-weight:900;
+    overflow-wrap:anywhere;
+}
+.status{
+    color:var(--green);
+    font-weight:850;
+}
+.meta,
+.items{
+    color:var(--muted);
+    font-size:.9rem;
+}
+.items{
+    margin-top:8px;
+    white-space:pre-wrap;
+}
+.actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:10px;
+}
+.actions button{
+    width:100%;
+}
+.actions button.active{
+    background:var(--ink);
+    color:#fff;
+}
+@media (min-width:720px){
+    .actions{
+        grid-template-columns:repeat(5,minmax(0,1fr));
+    }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+    <div class="topbar">
+        <h1>Online Orders</h1>
+        <div class="nav">
+            <a href="/admin/quick-sale">Quick Sale</a>
+            <form method="POST" action="/admin/logout">
+                <button type="submit">Logout</button>
+            </form>
+        </div>
+    </div>
+
+    <% if(error){ %>
+        <p class="message error"><%= error %></p>
+    <% } %>
+    <% if(success){ %>
+        <p class="message success"><%= success %></p>
+    <% } %>
+
+    <% if(orders.length === 0){ %>
+        <section class="order">
+            <p class="meta">No online orders yet.</p>
+        </section>
+    <% } %>
+
+    <% orders.forEach((order)=>{ %>
+        <section class="order">
+            <div class="order-head">
+                <div>
+                    <div class="number"><%= order.orderNumber %></div>
+                    <div class="status"><%= order.statusText %></div>
+                </div>
+                <strong>฿<%= order.total %></strong>
+            </div>
+            <div class="meta">
+                <%= new Date(order.createdAt).toLocaleString("th-TH") %>
+                <% if(order.customerLat && order.customerLng){ %>
+                    | <%= order.customerLat %>,<%= order.customerLng %>
+                <% } %>
+            </div>
+            <div class="items"><%= order.itemsText %></div>
+            <% if(order.trackingUrl){ %>
+                <div class="meta">
+                    <a href="<%= order.trackingUrl %>" target="_blank" rel="noopener">Open tracking</a>
+                </div>
+            <% } %>
+            <form class="actions" method="POST" action="/admin/orders/status">
+                <input type="hidden" name="orderNumber" value="<%= order.orderNumber %>">
+                <% statuses.forEach((status)=>{ %>
+                    <button
+                        type="submit"
+                        name="status"
+                        value="<%= status.value %>"
+                        class="<%= order.status === status.value ? 'active' : '' %>">
+                        <%= status.label %>
+                    </button>
+                <% }) %>
+            </form>
+        </section>
+    <% }) %>
+</main>
+</body>
+</html>

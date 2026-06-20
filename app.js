@@ -173,6 +173,82 @@ req.session.destroy(()=>{
 
 });
 
+app.get("/admin/orders",requireAdmin,(req,res)=>{
+
+
+try{
+
+    res.render(
+        "admin-orders",
+        {
+            orders: getOnlineOrders(),
+            statuses: getOnlineOrderStatuses(),
+            error: "",
+            success: ""
+        }
+    );
+
+}catch(error){
+
+    console.error(error);
+
+    res.status(500).render(
+        "admin-orders",
+        {
+            orders: [],
+            statuses: getOnlineOrderStatuses(),
+            error: "Cannot load online orders.",
+            success: ""
+        }
+    );
+
+}
+
+
+});
+
+app.post("/admin/orders/status",requireAdmin,(req,res)=>{
+
+
+const orderNumber =
+    req.body.orderNumber || "";
+
+const status =
+    req.body.status || "";
+
+try{
+
+    updateOnlineOrderStatus(orderNumber,status);
+
+    res.render(
+        "admin-orders",
+        {
+            orders: getOnlineOrders(),
+            statuses: getOnlineOrderStatuses(),
+            error: "",
+            success: `Updated ${orderNumber}`
+        }
+    );
+
+}catch(error){
+
+    console.error(error);
+
+    res.status(400).render(
+        "admin-orders",
+        {
+            orders: getOnlineOrders(),
+            statuses: getOnlineOrderStatuses(),
+            error: "Cannot update order status.",
+            success: ""
+        }
+    );
+
+}
+
+
+});
+
 app.get("/admin/quick-sale",requireAdmin,async (req,res)=>{
 
 
@@ -471,7 +547,7 @@ const savedOrderText =
     appendOrderLinks(
         orderText || "",
         trackingUrl,
-        locationData.customerMapUrl
+        locationData
     );
 
 const pngBase64 =
@@ -550,6 +626,9 @@ res.json({
     orderNumber,
     status,
     trackingUrl,
+    customerLat: locationData.customerLat,
+    customerLng: locationData.customerLng,
+    customerMapUrl: locationData.customerMapUrl,
     imageUrl: `/orders/${imageFile}`,
     jsonUrl: `/orders/${jsonFile}`,
     discordNotified
@@ -655,6 +734,13 @@ return [
         inline: false
     },
     {
+        name: "Customer lat,lng",
+        value: order.customerLat && order.customerLng ?
+            `${order.customerLat},${order.customerLng}` :
+            "-",
+        inline: false
+    },
+    {
         name: "Straight distance",
         value: order.straightDistanceKm ?
             `${order.straightDistanceKm} km` :
@@ -744,12 +830,15 @@ return items.map((item)=>{
 
 }
 
-function appendOrderLinks(orderText,trackingUrl,customerMapUrl){
+function appendOrderLinks(orderText,trackingUrl,locationData){
 
 return [
     orderText,
     trackingUrl ? `Tracking: ${trackingUrl}` : "",
-    customerMapUrl ? `Customer map: ${customerMapUrl}` : ""
+    locationData.customerLat && locationData.customerLng ?
+        `Customer lat,lng: ${locationData.customerLat},${locationData.customerLng}` :
+        "",
+    locationData.customerMapUrl ? `Customer map: ${locationData.customerMapUrl}` : ""
 ].filter(Boolean).join("\n");
 
 }
@@ -933,6 +1022,113 @@ return {
     done: "เสร็จแล้ว รับสินค้าได้",
     cancelled: "ออเดอร์ถูกยกเลิก"
 }[status] || status;
+
+}
+
+function getOnlineOrderStatuses(){
+
+return [
+    "pending_payment",
+    "paid",
+    "amount_issue",
+    "done",
+    "cancelled"
+].map((status)=>({
+    value: status,
+    label: getThaiStatusText(status)
+}));
+
+}
+
+function getOrdersDir(){
+
+return path.join(__dirname,"generated","orders");
+
+}
+
+function getOnlineOrders(){
+
+const ordersDir =
+    getOrdersDir();
+
+if(!fs.existsSync(ordersDir)){
+
+    return [];
+
+}
+
+return fs.readdirSync(ordersDir)
+    .filter((file)=>{
+        return /^WEB-\d{6}-\d{4}-\d{3}\.json$/.test(file);
+    })
+    .map((file)=>{
+        try{
+
+            const order =
+                JSON.parse(
+                    fs.readFileSync(
+                        path.join(ordersDir,file),
+                        "utf8"
+                    )
+                );
+
+            return {
+                ...order,
+                statusText: getThaiStatusText(order.status)
+            };
+
+        }catch(error){
+
+            console.error("ORDER READ FAILED",file,error.message);
+            return null;
+
+        }
+    })
+    .filter(Boolean)
+    .sort((a,b)=>{
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+
+}
+
+function updateOnlineOrderStatus(orderNumber,status){
+
+if(!getOnlineOrderStatuses().some((item)=>item.value === status)){
+
+    throw new Error("Invalid status");
+
+}
+
+const safeOrderNumber =
+    String(orderNumber || "").replace(/[^a-zA-Z0-9-]/g,"");
+
+if(!/^WEB-\d{6}-\d{4}-\d{3}$/.test(safeOrderNumber)){
+
+    throw new Error("Invalid order number");
+
+}
+
+const orderPath =
+    path.join(getOrdersDir(),`${safeOrderNumber}.json`);
+
+if(!fs.existsSync(orderPath)){
+
+    throw new Error("Order not found");
+
+}
+
+const order =
+    JSON.parse(fs.readFileSync(orderPath,"utf8"));
+
+order.status = status;
+order.updatedAt = new Date().toISOString();
+
+fs.writeFileSync(
+    orderPath,
+    JSON.stringify(order,null,2)
+);
+
+return order;
 
 }
 

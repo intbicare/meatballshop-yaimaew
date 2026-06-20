@@ -46,6 +46,24 @@ h1{
     font:inherit;
     font-weight:750;
 }
+.admin-nav{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+.admin-link{
+    min-height:40px;
+    display:inline-flex;
+    align-items:center;
+    border:1px solid #d8c8b9;
+    border-radius:999px;
+    background:#fff;
+    color:var(--ink);
+    padding:8px 12px;
+    font-weight:750;
+    text-decoration:none;
+}
 .panel{
     padding:14px;
     border:1px solid var(--line);
@@ -184,9 +202,12 @@ button,
 <main class="shell">
     <div class="topbar">
         <h1>Quick Sale</h1>
-        <form method="POST" action="/admin/logout">
-            <button class="logout" type="submit">Logout</button>
-        </form>
+        <div class="admin-nav">
+            <a class="admin-link" href="/admin/orders">Online Orders</a>
+            <form method="POST" action="/admin/logout">
+                <button class="logout" type="submit">Logout</button>
+            </form>
+        </div>
     </div>
 
     <% if(error){ %>
