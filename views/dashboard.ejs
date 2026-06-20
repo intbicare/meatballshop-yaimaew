@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meatball POS</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+:root{
+    --ink:#171412;
+    --muted:#716a62;
+    --line:#e8e0d7;
+    --paper:#fffaf4;
+    --surface:#ffffff;
+    --accent:#d73b1f;
+    --accent-dark:#a92615;
+    --green:#16784c;
+    --shadow:0 14px 34px rgba(42,31,20,.12);
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    padding-bottom:112px;
+}
+
+button,
+input{
+    font:inherit;
+}
+
+.app-shell{
+    width:min(1120px,100%);
+    margin:0 auto;
+}
+
+.topbar{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:rgba(255,250,244,.96);
+    border-bottom:1px solid var(--line);
+    backdrop-filter:blur(14px);
+}
+
+.topbar-inner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px 10px;
+}
+
+.language-toggle{
+    display:flex;
+    gap:6px;
+    flex:0 0 auto;
+    padding:3px;
+    border:1px solid #dfd0c2;
+    border-radius:999px;
+    background:#fff;
+}
+
+.lang-btn{
+    min-width:42px;
+    min-height:34px;
+    border:0;
+    border-radius:999px;
+    background:transparent;
+    color:var(--muted);
+    font-size:.82rem;
+    font-weight:850;
+}
+
+.lang-btn.active{
+    background:var(--ink);
+    color:#fff;
+}
+
+.brand-title{
+    margin:0;
+    font-size:1.12rem;
+    line-height:1.15;
+    font-weight:800;
+}
+
+.brand-subtitle{
+    margin:2px 0 0;
+    color:var(--muted);
+    font-size:.78rem;
+}
+
+.category-scroll::-webkit-scrollbar{
+    display:none;
+}
+
+.category-scroll{
+    position:sticky;
+    top:67px;
+    z-index:18;
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:10px 16px;
+    background:rgba(255,250,244,.96);
+    border-bottom:1px solid var(--line);
+    scrollbar-width:none;
+}
+
+.category-chip{
+    flex:0 0 auto;
+    min-height:38px;
+    padding:0 12px;
+    border:1px solid #decfc0;
+    border-radius:999px;
+    background:#fff;
+    color:var(--ink);
+    font-size:.86rem;
+    font-weight:800;
+}
+
+.content-grid{
+    display:grid;
+    gap:18px;
+    padding:16px;
+}
+
+.menu-section{
+    scroll-margin-top:155px;
+}
+
+.section-heading{
+    display:flex;
+    align-items:end;
+    justify-content:space-between;
+    gap:12px;
+    margin:4px 0 10px;
+}
+
+.section-heading h2{
+    margin:0;
+    font-size:1.1rem;
+    font-weight:850;
+}
+
+.section-count{
+    color:var(--muted);
+    font-size:.78rem;
+    white-space:nowrap;
+}
+
+.product-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+}
+
+.product-card{
+    position:relative;
+    min-height:100%;
+    overflow:hidden;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--surface);
+    box-shadow:0 4px 16px rgba(42,31,20,.07);
+    text-align:left;
+    padding:0;
+    touch-action:manipulation;
+}
+
+.product-card:active{
+    transform:scale(.985);
+}
+
+.product-image-wrap{
+    position:relative;
+    aspect-ratio:1/1;
+    background:#f2e9df;
+}
+
+.product-image{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+}
+
+.qty-badge{
+    position:absolute;
+    top:8px;
+    right:8px;
+    min-width:30px;
+    height:30px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    background:var(--accent);
+    color:#fff;
+    font-size:.86rem;
+    font-weight:850;
+    box-shadow:0 6px 16px rgba(167,38,21,.35);
+}
+
+.product-body{
+    display:grid;
+    gap:8px;
+    padding:10px;
+}
+
+.product-name{
+    min-height:2.62em;
+    margin:0;
+    font-size:.91rem;
+    line-height:1.31;
+    font-weight:800;
+}
+
+.product-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+}
+
+.product-price{
+    color:var(--accent-dark);
+    font-size:1rem;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.add-dot{
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    flex:0 0 auto;
+    border-radius:999px;
+    background:var(--ink);
+    color:#fff;
+    font-size:1.18rem;
+    line-height:1;
+    font-weight:800;
+}
+
+.cart-panel{
+    display:none;
+}
+
+.cart-card,
+.sheet-panel{
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    box-shadow:var(--shadow);
+}
+
+.cart-title{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:12px;
+}
+
+.cart-title h2{
+    margin:0;
+    font-size:1.08rem;
+    font-weight:850;
+}
+
+.cart-items{
+    display:grid;
+    gap:10px;
+}
+
+.order-number-card{
+    display:grid;
+    gap:2px;
+    margin-bottom:14px;
+    padding:12px;
+    border:1px solid #ead7c5;
+    border-radius:8px;
+    background:#fff6eb;
+}
+
+.order-number-label{
+    color:var(--muted);
+    font-size:.78rem;
+    font-weight:800;
+    text-transform:uppercase;
+}
+
+.order-number-value{
+    font-size:1.52rem;
+    line-height:1.1;
+    letter-spacing:0;
+}
+
+.order-number-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+
+.copy-order-btn{
+    min-height:36px;
+    flex:0 0 auto;
+    border:1px solid #d9c8b8;
+    border-radius:999px;
+    background:#fff;
+    color:var(--ink);
+    padding:0 12px;
+    font-size:.82rem;
+    font-weight:850;
+}
+
+.copy-order-btn:disabled{
+    cursor:not-allowed;
+    opacity:.45;
+}
+
+.order-number-card small,
+.payment-note{
+    color:var(--muted);
+    font-size:.84rem;
+}
+
+.copy-status{
+    min-height:18px;
+}
+
+.empty-cart{
+    padding:18px 12px;
+    color:var(--muted);
+    text-align:center;
+    border:1px dashed #d8c8b9;
+    border-radius:8px;
+    background:#fffaf4;
+}
+
+.cart-line{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:12px;
+    align-items:center;
+}
+
+.cart-line-name{
+    font-weight:750;
+    line-height:1.25;
+}
+
+.cart-line-price{
+    color:var(--muted);
+    font-size:.82rem;
+}
+
+.qty-control{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.qty-btn{
+    width:36px;
+    height:36px;
+    border:1px solid #d6c8ba;
+    border-radius:999px;
+    background:#fff;
+    color:var(--ink);
+    font-size:1.15rem;
+    font-weight:850;
+    line-height:1;
+}
+
+.qty-value{
+    min-width:24px;
+    text-align:center;
+    font-weight:850;
+}
+
+.total-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px solid var(--line);
+}
+
+.total-label{
+    color:var(--muted);
+    font-size:.86rem;
+    font-weight:750;
+}
+
+.total-value{
+    font-size:1.48rem;
+    font-weight:900;
+}
+
+.action-stack{
+    display:grid;
+    gap:9px;
+    margin-top:14px;
+}
+
+.primary-action,
+.secondary-action{
+    min-height:48px;
+    border:0;
+    border-radius:8px;
+    font-weight:850;
+}
+
+.primary-action{
+    background:var(--green);
+    color:#fff;
+}
+
+.primary-action:disabled{
+    cursor:not-allowed;
+    opacity:.55;
+}
+
+.secondary-action{
+    background:#efe7de;
+    color:var(--ink);
+}
+
+.slip-link{
+    display:grid;
+    place-items:center;
+    color:var(--ink);
+    text-decoration:none;
+}
+
+.qr-area{
+    text-align:center;
+}
+
+.qr-area img{
+    max-width:210px;
+    width:100%;
+}
+
+.payment-note{
+    margin:10px 0 0;
+    text-align:center;
+}
+
+.submit-status{
+    min-height:20px;
+    margin:8px 0 0;
+    color:var(--muted);
+    font-size:.84rem;
+    text-align:center;
+}
+
+.bottom-cart{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:30;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(255,250,244,.94);
+    border-top:1px solid var(--line);
+    backdrop-filter:blur(14px);
+}
+
+.bottom-cart button{
+    width:min(720px,100%);
+    min-height:58px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin:0 auto;
+    border:0;
+    border-radius:8px;
+    background:var(--ink);
+    color:#fff;
+    padding:0 16px;
+    font-weight:850;
+    box-shadow:0 12px 28px rgba(23,20,18,.22);
+}
+
+.bottom-meta{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.bottom-count{
+    min-width:30px;
+    height:30px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    background:var(--accent);
+}
+
+.cart-sheet{
+    position:fixed;
+    inset:0;
+    z-index:40;
+    display:none;
+}
+
+.cart-sheet.is-open{
+    display:block;
+}
+
+.sheet-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(23,20,18,.44);
+}
+
+.sheet-panel{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    max-height:88vh;
+    overflow:auto;
+    border-radius:16px 16px 0 0;
+    padding:16px;
+}
+
+.sheet-handle{
+    width:42px;
+    height:5px;
+    border-radius:999px;
+    background:#d8c8b9;
+    margin:0 auto 14px;
+}
+
+.close-sheet{
+    width:40px;
+    height:40px;
+    display:grid;
+    place-items:center;
+    border:1px solid #d8c8b9;
+    border-radius:999px;
+    background:#fff;
+    color:var(--ink);
+    font-weight:900;
+}
+
+@media (min-width:720px){
+    body{
+        padding-bottom:0;
+    }
+
+    .topbar-inner{
+        padding:18px 22px 12px;
+    }
+
+    .brand-title{
+        font-size:1.34rem;
+    }
+
+    .category-scroll,
+    .content-grid{
+        padding-left:22px;
+        padding-right:22px;
+    }
+
+    .category-scroll{
+        top:73px;
+    }
+
+    .content-grid{
+        grid-template-columns:minmax(0,1fr) 340px;
+        align-items:start;
+    }
+
+    .product-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:14px;
+    }
+
+    .cart-panel{
+        display:block;
+        position:sticky;
+        top:126px;
+    }
+
+    .cart-card{
+        padding:16px;
+    }
+
+    .bottom-cart,
+    .cart-sheet{
+        display:none !important;
+    }
+}
+</style>
+</head>
+<body>
+<%
+const grouped = {};
+
+products.forEach(product => {
+    const category = product.category || "อื่นๆ";
+
+    if(!grouped[category]){
+        grouped[category] = [];
+    }
+
+    grouped[category].push(product);
+});
+
+const sortedCategories = Object.keys(grouped).sort((a,b)=>{
+    if(a.includes("โปร")) return -1;
+    if(b.includes("โปร")) return 1;
+    if(a.includes("ทอด")) return -1;
+    if(b.includes("ทอด")) return 1;
+    return a.localeCompare(b,"th");
+});
+%>
+
+<div class="app-shell">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div>
+                <h1 class="brand-title">ร้านของทอดชุบเครื่องแกงใต้ (ขนมไทยยายแมว)</h1>
+                <p class="brand-subtitle" data-i18n="subtitle">เลือกเมนู สแกนจ่าย แล้วส่งออเดอร์</p>
+            </div>
+            <div class="language-toggle" aria-label="Language">
+                <button class="lang-btn active" type="button" data-lang="th">TH</button>
+                <button class="lang-btn" type="button" data-lang="en">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="category-scroll" aria-label="Menu categories">
+        <% sortedCategories.forEach(category => { %>
+            <button class="category-chip" type="button" data-target="cat-<%= category %>"><%= category %></button>
+        <% }) %>
+    </nav>
+
+    <main class="content-grid">
+        <div>
+            <% sortedCategories.forEach(category => { %>
+                <section class="menu-section" id="cat-<%= category %>">
+                    <div class="section-heading">
+                        <h2><%= category %></h2>
+                        <span class="section-count" data-count="<%= grouped[category].length %>"><%= grouped[category].length %> รายการ</span>
+                    </div>
+
+                    <div class="product-grid">
+                        <% grouped[category].forEach(product => { %>
+                            <button
+                                class="product-card"
+                                type="button"
+                                data-testid="product-card"
+                                data-product-id="<%= product.id %>"
+                                data-product-name="<%= product.name %>"
+                                data-product-price="<%= product.price %>">
+                                <div class="product-image-wrap">
+                                    <img
+                                        src="<%= product.image_url %>"
+                                        alt="<%= product.name %>"
+                                        class="product-image"
+                                        loading="lazy">
+                                    <span class="qty-badge d-none" id="badge-<%= product.id %>">0</span>
+                                </div>
+                                <div class="product-body">
+                                    <p class="product-name"><%= product.name %></p>
+                                    <div class="product-foot">
+                                        <span class="product-price">฿<%= product.price %></span>
+                                        <span class="add-dot" aria-hidden="true">+</span>
+                                    </div>
+                                </div>
+                            </button>
+                        <% }) %>
+                    </div>
+                </section>
+            <% }) %>
+        </div>
+
+        <aside class="cart-panel">
+            <div class="cart-card">
+                <%- include("partials/cart-content") %>
+            </div>
+        </aside>
+    </main>
+</div>
+
+<div class="bottom-cart">
+    <button type="button" id="openCartBtn" data-testid="open-cart">
+        <span class="bottom-meta">
+            <span class="bottom-count" id="mobileCount">0</span>
+            <span data-i18n="viewOrder">ดูออเดอร์</span>
+        </span>
+        <span>฿<span id="mobileTotal">0</span></span>
+    </button>
+</div>
+
+<div class="cart-sheet" id="cartSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close-sheet></div>
+    <div class="sheet-panel">
+        <div class="sheet-handle"></div>
+        <div class="cart-title">
+            <h2 data-i18n="orderTitle">รายการสั่งซื้อ</h2>
+            <button class="close-sheet" type="button" data-close-sheet data-testid="close-cart" aria-label="Close cart">x</button>
+        </div>
+        <%- include("partials/cart-content", { sheet: true }) %>
+    </div>
+</div>
+
+<script>
+const cart = {};
+let orderNumber = "";
+let currentLanguage = "th";
+let submittedOrderUrl = "";
+let lastQrTotal = null;
+
+const maxQrTotal = 5000;
+
+const shopName = "ร้านของทอดชุบเครื่องแกงใต้ (ขนมไทยยายแมว)";
+
+const translations = {
+    th: {
+        subtitle: "เลือกเมนู สแกนจ่าย แล้วส่งออเดอร์",
+        viewOrder: "ดูออเดอร์",
+        orderTitle: "รายการสั่งซื้อ",
+        orderNumberLabel: "เลขออเดอร์",
+        orderNumberHelp: "บอกเลขนี้กับร้านหลังชำระเงิน",
+        copyOrder: "คัดลอก",
+        copiedOrder: "คัดลอกแล้ว",
+        emptyCart: "ยังไม่มีสินค้า",
+        totalLabel: "รวม",
+        baht: "บาท",
+        paymentNote: "สแกนจ่าย แล้วกดส่งออเดอร์ให้ร้าน",
+        massOrderNote: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
+        submitOrder: "ส่งออเดอร์ให้ร้าน",
+        downloadSlip: "ดาวน์โหลดใบออเดอร์ร้าน",
+        addItemFirst: "เพิ่มสินค้าก่อน",
+        addItemAlert: "กรุณาเลือกสินค้าก่อน",
+        massOrderAlert: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
+        sending: "กำลังส่งออเดอร์...",
+        sent: "ส่งออเดอร์แล้ว กรุณาบอกเลขออเดอร์กับร้าน",
+        failed: "ส่งออเดอร์ไม่สำเร็จ กรุณาลองอีกครั้ง",
+        itemUnit: "รายการ",
+        slipTitle: "ใบออเดอร์ร้าน",
+        paidText: "ลูกค้าแจ้งว่าชำระแล้ว",
+        timeLabel: "เวลา",
+        qtyPrefix: "x",
+        totalSlip: "รวม"
+    },
+    en: {
+        subtitle: "Choose items, scan to pay, then send your order",
+        viewOrder: "View order",
+        orderTitle: "Your order",
+        orderNumberLabel: "Order number",
+        orderNumberHelp: "Show this number after you pay.",
+        copyOrder: "Copy",
+        copiedOrder: "Copied",
+        emptyCart: "Your cart is empty",
+        totalLabel: "Total",
+        baht: "baht",
+        paymentNote: "Scan to pay, then send the order to the shop.",
+        massOrderNote: "Orders over 5,000 baht need direct shop contact for mass order.",
+        submitOrder: "Send order to shop",
+        downloadSlip: "Download shop order slip",
+        addItemFirst: "Add item first",
+        addItemAlert: "Please add an item first.",
+        massOrderAlert: "Orders over 5,000 baht need direct shop contact for mass order.",
+        sending: "Sending order...",
+        sent: "Order sent. Please tell the shop your order number.",
+        failed: "Could not send order. Please try again.",
+        itemUnit: "items",
+        slipTitle: "Shop order slip",
+        paidText: "Customer marked as paid",
+        timeLabel: "Time",
+        qtyPrefix: "x",
+        totalSlip: "Total"
+    }
+};
+
+const formatBaht = new Intl.NumberFormat("th-TH", {
+    maximumFractionDigits: 0
+});
+
+document.querySelectorAll(".lang-btn").forEach((button) => {
+    button.addEventListener("click", () => setLanguage(button.dataset.lang));
+});
+
+document.querySelectorAll(".category-chip").forEach((button) => {
+    button.addEventListener("click", () => {
+        document.getElementById(button.dataset.target)?.scrollIntoView({
+            behavior:"smooth",
+            block:"start"
+        });
+    });
+});
+
+document.querySelectorAll(".product-card").forEach((card) => {
+    card.addEventListener("click", () => {
+        addItem(
+            card.dataset.productId,
+            card.dataset.productName,
+            Number(card.dataset.productPrice)
+        );
+    });
+});
+
+document.getElementById("openCartBtn").addEventListener("click", openCartSheet);
+document.querySelectorAll("[data-close-sheet]").forEach((item) => {
+    item.addEventListener("click", closeCartSheet);
+});
+
+function addItem(id, name, price){
+    const wasEmpty = getItemCount() === 0;
+
+    clearSubmittedOrder();
+    ensureOrderNumber();
+
+    if(!cart[id]){
+        cart[id] = {
+            id,
+            name,
+            price,
+            qty:0
+        };
+    }
+
+    cart[id].qty += 1;
+    renderCart();
+
+    if(wasEmpty && window.innerWidth < 720){
+        openCartSheet();
+    }
+}
+
+function changeQty(id, qty){
+    if(!cart[id]){
+        return;
+    }
+
+    clearSubmittedOrder();
+    cart[id].qty += qty;
+
+    if(cart[id].qty <= 0){
+        delete cart[id];
+    }
+
+    renderCart();
+}
+
+function renderCart(){
+    const items = Object.values(cart);
+    let total = 0;
+    let itemCount = 0;
+
+    document.querySelectorAll(".qty-badge").forEach((badge) => {
+        badge.classList.add("d-none");
+    });
+
+    const html = items.map((item) => {
+        total += item.price * item.qty;
+        itemCount += item.qty;
+
+        const badge = document.getElementById(`badge-${item.id}`);
+        if(badge){
+            badge.innerText = item.qty;
+            badge.classList.remove("d-none");
+        }
+
+        return `
+            <div class="cart-line">
+                <div>
+                    <div class="cart-line-name">${escapeHtml(item.name)}</div>
+                    <div class="cart-line-price">฿${formatBaht.format(item.price)}</div>
+                </div>
+                <div class="qty-control">
+                    <button class="qty-btn" type="button" data-testid="decrease-item" onclick="changeQty('${item.id}',-1)">-</button>
+                    <span class="qty-value">${item.qty}</span>
+                    <button class="qty-btn" type="button" data-testid="increase-item" onclick="changeQty('${item.id}',1)">+</button>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    const cartHtml = html || `<div class="empty-cart">${t("emptyCart")}</div>`;
+
+    document.querySelectorAll(".cart-items").forEach((container) => {
+        container.innerHTML = cartHtml;
+    });
+
+    document.querySelectorAll(".total-amount").forEach((item) => {
+        item.innerText = formatBaht.format(total);
+    });
+
+    document.getElementById("mobileTotal").innerText = formatBaht.format(total);
+    document.getElementById("mobileCount").innerText = itemCount;
+
+    if(itemCount === 0){
+        orderNumber = "";
+        lastQrTotal = null;
+        document.querySelectorAll(".qr-image").forEach((image) => {
+            image.removeAttribute("src");
+        });
+    }
+
+    document.querySelectorAll(".order-number-value").forEach((item) => {
+        item.innerText = orderNumber || t("addItemFirst");
+    });
+
+    document.querySelectorAll(".copy-order-btn").forEach((button) => {
+        button.disabled = !orderNumber;
+    });
+
+    updateCopyStatus("");
+
+    updateQR(total);
+    updatePaymentState(total);
+    if(!submittedOrderUrl){
+        updateSubmitStatus("");
+    }
+}
+
+function updateQR(total){
+    if(total <= 0 || total > maxQrTotal){
+        lastQrTotal = null;
+        document.querySelectorAll(".qr-image").forEach((image) => {
+            image.removeAttribute("src");
+        });
+        return;
+    }
+
+    if(total === lastQrTotal){
+        return;
+    }
+
+    lastQrTotal = total;
+
+    document.querySelectorAll(".qr-image").forEach((image) => {
+        image.src = `https://promptpay.io/0651167368/${total}.png`;
+    });
+}
+
+function updatePaymentState(total){
+    const isMassOrder = total > maxQrTotal;
+
+    document.querySelectorAll(".payment-note").forEach((note) => {
+        note.innerText = isMassOrder ? t("massOrderNote") : t("paymentNote");
+    });
+
+    document.querySelectorAll(".submit-order-action").forEach((button) => {
+        button.disabled = isMassOrder;
+    });
+}
+
+function clearSubmittedOrder(){
+    submittedOrderUrl = "";
+    updateSlipLinks("");
+    updateSubmitStatus("");
+}
+
+async function submitOrder(){
+    const payload = buildOrderPayload();
+
+    if(!payload){
+        alert(t("addItemAlert"));
+        return;
+    }
+
+    if(payload.total > maxQrTotal){
+        updateSubmitStatus(t("massOrderAlert"));
+        return;
+    }
+
+    updateSubmitStatus(t("sending"));
+
+    const slipImage = createSlipImage(payload);
+
+    try{
+        const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                ...payload,
+                slipImage
+            })
+        });
+
+        if(!response.ok){
+            throw new Error("Order save failed");
+        }
+
+        const saved = await response.json();
+        submittedOrderUrl = saved.imageUrl;
+        updateSlipLinks(saved.imageUrl);
+        updateSubmitStatus(t("sent"));
+    }catch(error){
+        updateSubmitStatus(t("failed"));
+    }
+}
+
+function buildOrderPayload(){
+    const items = Object.values(cart);
+
+    if(items.length === 0){
+        return null;
+    }
+
+    ensureOrderNumber();
+
+    const total = items.reduce((sum, item) => {
+        return sum + (item.price * item.qty);
+    }, 0);
+
+    return {
+        orderNumber,
+        shopName,
+        language: currentLanguage,
+        total,
+        createdAt: new Date().toISOString(),
+        items: items.map((item) => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            qty: item.qty,
+            lineTotal: item.price * item.qty
+        }))
+    };
+}
+
+function createSlipImage(order){
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 560;
+
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#111111";
+    ctx.textBaseline = "top";
+
+    let y = 18;
+
+    ctx.font = "700 18px system-ui, sans-serif";
+    y = drawWrappedText(ctx, shopName, 18, y, 364, 22);
+
+    ctx.font = "700 16px system-ui, sans-serif";
+    ctx.fillText(t("slipTitle"), 18, y + 8);
+    y += 34;
+
+    ctx.font = "800 24px system-ui, sans-serif";
+    ctx.fillText(order.orderNumber, 18, y);
+    y += 34;
+
+    ctx.font = "400 13px system-ui, sans-serif";
+    ctx.fillText(`${t("timeLabel")}: ${formatSlipTime(order.createdAt)}`, 18, y);
+    y += 24;
+
+    ctx.fillText(t("paidText"), 18, y);
+    y += 28;
+
+    drawLine(ctx, y);
+    y += 14;
+
+    ctx.font = "600 14px system-ui, sans-serif";
+    order.items.forEach((item) => {
+        y = drawWrappedText(ctx, item.name, 18, y, 360, 17);
+        ctx.fillText(`${t("qtyPrefix")}${item.qty}`, 18, y);
+        ctx.fillText(`฿${formatBaht.format(item.lineTotal)}`, 308, y);
+        y += 24;
+    });
+
+    y += 2;
+    drawLine(ctx, y);
+    y += 18;
+
+    ctx.font = "800 24px system-ui, sans-serif";
+    ctx.fillText(t("totalSlip"), 18, y);
+    ctx.fillText(`฿${formatBaht.format(order.total)}`, 260, y);
+
+    return canvas.toDataURL("image/png");
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = String(text).split(" ");
+    let line = "";
+
+    words.forEach((word) => {
+        const testLine = line ? `${line} ${word}` : word;
+        if(ctx.measureText(testLine).width > maxWidth && line){
+            ctx.fillText(line, x, y);
+            line = word;
+            y += lineHeight;
+        }else{
+            line = testLine;
+        }
+    });
+
+    if(line){
+        ctx.fillText(line, x, y);
+        y += lineHeight;
+    }
+
+    return y;
+}
+
+function drawLine(ctx, y){
+    ctx.strokeStyle = "#111111";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(18,y);
+    ctx.lineTo(382,y);
+    ctx.stroke();
+}
+
+function formatSlipTime(value){
+    return new Intl.DateTimeFormat(
+        currentLanguage === "th" ? "th-TH" : "en-GB",
+        {
+            dateStyle: "short",
+            timeStyle: "short"
+        }
+    ).format(new Date(value));
+}
+
+function ensureOrderNumber(){
+    if(orderNumber){
+        return orderNumber;
+    }
+
+    const now = new Date();
+    const datePart = [
+        String(now.getFullYear()).slice(-2),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0")
+    ].join("");
+    const timePart = [
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0")
+    ].join("");
+    const randomPart = Math.floor(100 + Math.random() * 900);
+
+    orderNumber = `MB-${datePart}-${timePart}-${randomPart}`;
+    return orderNumber;
+}
+
+function getItemCount(){
+    return Object.values(cart).reduce((sum, item) => {
+        return sum + item.qty;
+    }, 0);
+}
+
+function openCartSheet(){
+    const sheet = document.getElementById("cartSheet");
+    sheet.classList.add("is-open");
+    sheet.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+}
+
+function closeCartSheet(){
+    const sheet = document.getElementById("cartSheet");
+    sheet.classList.remove("is-open");
+    sheet.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+}
+
+async function copyOrderNumber(){
+    if(!orderNumber){
+        return;
+    }
+
+    try{
+        if(navigator.clipboard && window.isSecureContext){
+            await navigator.clipboard.writeText(orderNumber);
+        }else{
+            fallbackCopyText(orderNumber);
+        }
+
+        updateCopyStatus(t("copiedOrder"));
+    }catch(error){
+        fallbackCopyText(orderNumber);
+        updateCopyStatus(t("copiedOrder"));
+    }
+}
+
+function fallbackCopyText(value){
+    const input = document.createElement("input");
+    input.value = value;
+    input.setAttribute("readonly", "readonly");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    document.body.removeChild(input);
+}
+
+function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g, (char) => {
+        return {
+            "&":"&amp;",
+            "<":"&lt;",
+            ">":"&gt;",
+            '"':"&quot;",
+            "'":"&#039;"
+        }[char];
+    });
+}
+
+function setLanguage(language){
+    currentLanguage = language;
+    document.documentElement.lang = language;
+
+    document.querySelectorAll(".lang-btn").forEach((button) => {
+        button.classList.toggle("active", button.dataset.lang === language);
+    });
+
+    document.querySelectorAll("[data-i18n]").forEach((item) => {
+        item.innerText = t(item.dataset.i18n);
+    });
+
+    document.querySelectorAll(".section-count").forEach((item) => {
+        item.innerText = `${item.dataset.count} ${t("itemUnit")}`;
+    });
+
+    document.querySelectorAll(".order-number-value").forEach((item) => {
+        if(!orderNumber){
+            item.innerText = t("addItemFirst");
+        }
+    });
+
+    if(submittedOrderUrl){
+        updateSubmitStatus(t("sent"));
+    }
+
+    document.querySelectorAll(".copy-status").forEach((item) => {
+        if(item.innerText){
+            item.innerText = t("copiedOrder");
+        }
+    });
+
+    renderCart();
+}
+
+function updateSlipLinks(url){
+    document.querySelectorAll(".slip-link").forEach((link) => {
+        if(url){
+            link.href = url;
+            link.download = `${orderNumber}.png`;
+            link.classList.remove("d-none");
+        }else{
+            link.href = "#";
+            link.classList.add("d-none");
+        }
+    });
+}
+
+function updateSubmitStatus(message){
+    document.querySelectorAll(".submit-status").forEach((item) => {
+        item.innerText = message;
+    });
+}
+
+function updateCopyStatus(message){
+    document.querySelectorAll(".copy-status").forEach((item) => {
+        item.innerText = message;
+    });
+}
+
+function t(key){
+    return translations[currentLanguage][key] || key;
+}
+
+setLanguage("th");
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+node_modules/
+npm-debug.log*
+*.log
+.env
+*.sqbpro
+generated/orders/*.png
+generated/orders/*.json
+!.gitkeep

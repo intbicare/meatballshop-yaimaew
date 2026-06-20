@@ -1,0 +1,37 @@
+<% if(typeof sheet === "undefined" || !sheet){ %>
+    <div class="cart-title">
+        <h2 data-i18n="orderTitle">Order</h2>
+    </div>
+<% } %>
+
+<div class="order-number-card">
+    <span class="order-number-label" data-i18n="orderNumberLabel">Order number</span>
+    <div class="order-number-row">
+        <strong class="order-number-value">Add item first</strong>
+        <button class="copy-order-btn" type="button" onclick="copyOrderNumber()" disabled data-i18n="copyOrder">Copy</button>
+    </div>
+    <small data-i18n="orderNumberHelp">Show this number after you pay.</small>
+    <small class="copy-status" aria-live="polite"></small>
+</div>
+
+<div class="cart-items">
+    <div class="empty-cart" data-i18n="emptyCart">Your cart is empty</div>
+</div>
+
+<div class="total-row">
+    <span class="total-label" data-i18n="totalLabel">Total</span>
+    <span class="total-value"><span class="total-amount">0</span> <span data-i18n="baht">baht</span></span>
+</div>
+
+<div class="qr-area mt-3">
+    <img class="qr-image" alt="PromptPay QR code">
+</div>
+
+<p class="payment-note" data-i18n="paymentNote">Scan to pay, then send the order to the shop.</p>
+
+<div class="action-stack">
+    <button class="primary-action submit-order-action" type="button" onclick="submitOrder()" data-i18n="submitOrder">Send order to shop</button>
+    <a class="secondary-action slip-link d-none" href="#" download data-i18n="downloadSlip">Download shop order slip</a>
+</div>
+
+<p class="submit-status" aria-live="polite"></p>
