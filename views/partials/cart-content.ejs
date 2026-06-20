@@ -27,11 +27,10 @@
     <img class="qr-image" alt="PromptPay QR code">
 </div>
 
-<p class="payment-note" data-i18n="paymentNote">Scan to pay, then send the order to the shop.</p>
+<p class="payment-note" data-i18n="paymentNote">Scan to pay or download the QR code.</p>
 
 <div class="action-stack">
-    <button class="primary-action submit-order-action" type="button" onclick="submitOrder()" data-i18n="submitOrder">Send order to shop</button>
-    <a class="secondary-action slip-link d-none" href="#" download data-i18n="downloadSlip">Download shop order slip</a>
+    <a class="primary-action qr-download-link is-disabled" href="#" download data-i18n="downloadQr">Download QR code</a>
 </div>
 
-<p class="submit-status" aria-live="polite"></p>
+<p class="download-status" aria-live="polite"></p>

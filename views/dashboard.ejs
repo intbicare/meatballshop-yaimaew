@@ -427,9 +427,11 @@ input{
     color:#fff;
 }
 
-.primary-action:disabled{
+.primary-action:disabled,
+.primary-action.is-disabled{
     cursor:not-allowed;
     opacity:.55;
+    pointer-events:none;
 }
 
 .secondary-action{
@@ -437,10 +439,10 @@ input{
     color:var(--ink);
 }
 
-.slip-link{
+.qr-download-link{
     display:grid;
     place-items:center;
-    color:var(--ink);
+    color:#fff;
     text-decoration:none;
 }
 
@@ -458,7 +460,7 @@ input{
     text-align:center;
 }
 
-.submit-status{
+.download-status{
     min-height:20px;
     margin:8px 0 0;
     color:var(--muted);
@@ -725,7 +727,6 @@ const sortedCategories = Object.keys(grouped).sort((a,b)=>{
 const cart = {};
 let orderNumber = "";
 let currentLanguage = "th";
-let submittedOrderUrl = "";
 let lastQrTotal = null;
 
 const maxQrTotal = 5000;
@@ -744,15 +745,15 @@ const translations = {
         emptyCart: "ยังไม่มีสินค้า",
         totalLabel: "รวม",
         baht: "บาท",
-        paymentNote: "สแกนจ่าย แล้วกดส่งออเดอร์ให้ร้าน",
+        paymentNote: "สแกนจ่าย หรือดาวน์โหลด QR Code",
         massOrderNote: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
-        submitOrder: "ส่งออเดอร์ให้ร้าน",
-        downloadSlip: "ดาวน์โหลดใบออเดอร์ร้าน",
+        downloadQr: "ดาวน์โหลด QR Code",
+        qrReady: "ดาวน์โหลด QR Code ได้แล้ว",
         addItemFirst: "เพิ่มสินค้าก่อน",
         addItemAlert: "กรุณาเลือกสินค้าก่อน",
         massOrderAlert: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
         sending: "กำลังส่งออเดอร์...",
-        sent: "ส่งออเดอร์แล้ว กรุณาบอกเลขออเดอร์กับร้าน",
+        sent: "ดาวน์โหลด QR Code ได้แล้ว",
         failed: "ส่งออเดอร์ไม่สำเร็จ กรุณาลองอีกครั้ง",
         itemUnit: "รายการ",
         slipTitle: "ใบออเดอร์ร้าน",
@@ -772,15 +773,15 @@ const translations = {
         emptyCart: "Your cart is empty",
         totalLabel: "Total",
         baht: "baht",
-        paymentNote: "Scan to pay, then send the order to the shop.",
+        paymentNote: "Scan to pay or download the QR code.",
         massOrderNote: "Orders over 5,000 baht need direct shop contact for mass order.",
-        submitOrder: "Send order to shop",
-        downloadSlip: "Download shop order slip",
+        downloadQr: "Download QR code",
+        qrReady: "QR code is ready to download.",
         addItemFirst: "Add item first",
         addItemAlert: "Please add an item first.",
         massOrderAlert: "Orders over 5,000 baht need direct shop contact for mass order.",
         sending: "Sending order...",
-        sent: "Order sent. Please tell the shop your order number.",
+        sent: "QR code is ready to download.",
         failed: "Could not send order. Please try again.",
         itemUnit: "items",
         slipTitle: "Shop order slip",
@@ -928,9 +929,7 @@ function renderCart(){
 
     updateQR(total);
     updatePaymentState(total);
-    if(!submittedOrderUrl){
-        updateSubmitStatus("");
-    }
+    updateDownloadStatus("");
 }
 
 function updateQR(total){
@@ -960,57 +959,21 @@ function updatePaymentState(total){
         note.innerText = isMassOrder ? t("massOrderNote") : t("paymentNote");
     });
 
-    document.querySelectorAll(".submit-order-action").forEach((button) => {
-        button.disabled = isMassOrder;
+    document.querySelectorAll(".qr-download-link").forEach((link) => {
+        if(isMassOrder || total <= 0){
+            link.href = "#";
+            link.classList.add("is-disabled");
+            link.removeAttribute("download");
+        }else{
+            link.href = `/qr/${total}`;
+            link.download = `${orderNumber || "promptpay"}-qr.png`;
+            link.classList.remove("is-disabled");
+        }
     });
 }
 
 function clearSubmittedOrder(){
-    submittedOrderUrl = "";
-    updateSlipLinks("");
-    updateSubmitStatus("");
-}
-
-async function submitOrder(){
-    const payload = buildOrderPayload();
-
-    if(!payload){
-        alert(t("addItemAlert"));
-        return;
-    }
-
-    if(payload.total > maxQrTotal){
-        updateSubmitStatus(t("massOrderAlert"));
-        return;
-    }
-
-    updateSubmitStatus(t("sending"));
-
-    try{
-        const slipImage = await createSlipImage(payload);
-
-        const response = await fetch("/api/orders", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                ...payload,
-                slipImage
-            })
-        });
-
-        if(!response.ok){
-            throw new Error("Order save failed");
-        }
-
-        const saved = await response.json();
-        submittedOrderUrl = saved.imageUrl;
-        updateSlipLinks(saved.imageUrl);
-        updateSubmitStatus(t("sent"));
-    }catch(error){
-        updateSubmitStatus(t("failed"));
-    }
+    updateDownloadStatus("");
 }
 
 function buildOrderPayload(){
@@ -1283,10 +1246,6 @@ function setLanguage(language){
         }
     });
 
-    if(submittedOrderUrl){
-        updateSubmitStatus(t("sent"));
-    }
-
     document.querySelectorAll(".copy-status").forEach((item) => {
         if(item.innerText){
             item.innerText = t("copiedOrder");
@@ -1296,21 +1255,8 @@ function setLanguage(language){
     renderCart();
 }
 
-function updateSlipLinks(url){
-    document.querySelectorAll(".slip-link").forEach((link) => {
-        if(url){
-            link.href = url;
-            link.download = `${orderNumber}.png`;
-            link.classList.remove("d-none");
-        }else{
-            link.href = "#";
-            link.classList.add("d-none");
-        }
-    });
-}
-
-function updateSubmitStatus(message){
-    document.querySelectorAll(".submit-status").forEach((item) => {
+function updateDownloadStatus(message){
+    document.querySelectorAll(".download-status").forEach((item) => {
         item.innerText = message;
     });
 }
