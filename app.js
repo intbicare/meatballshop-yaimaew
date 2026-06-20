@@ -13,6 +13,8 @@ app.set("trust proxy", true);
 
 app.set("view engine", "ejs");
 
+app.locals.formatBangkokDateTime = formatBangkokDateTime;
+
 app.use(
 session({
 secret: process.env.SESSION_SECRET || "dev-session-secret",
@@ -497,7 +499,8 @@ const {
     total,
     slipImage,
     orderText,
-    customerLocation
+    customerLocation,
+    customerMapLink
 } = req.body;
 
 if(
@@ -541,7 +544,10 @@ const trackingUrl =
     `${getAppBaseUrl(req)}/track/${safeOrderNumber}?t=${trackingToken}`;
 
 const locationData =
-    await buildCustomerLocationData(customerLocation);
+    await buildCustomerLocationData(
+        customerLocation,
+        customerMapLink
+    );
 
 const savedOrderText =
     appendOrderLinks(
@@ -767,26 +773,74 @@ return [
 
 function createWebOrderNumber(){
 
-const now =
-    new Date();
+const parts =
+    getBangkokDateParts(new Date());
 
 const datePart =
     [
-        String(now.getFullYear()).slice(-2),
-        String(now.getMonth() + 1).padStart(2,"0"),
-        String(now.getDate()).padStart(2,"0")
+        parts.year.slice(-2),
+        parts.month,
+        parts.day
     ].join("");
 
 const timePart =
     [
-        String(now.getHours()).padStart(2,"0"),
-        String(now.getMinutes()).padStart(2,"0")
+        parts.hour,
+        parts.minute
     ].join("");
 
 const randomPart =
     Math.floor(100 + Math.random() * 900);
 
 return `WEB-${datePart}-${timePart}-${randomPart}`;
+
+}
+
+function getBangkokDateParts(date){
+
+const parts =
+    new Intl.DateTimeFormat(
+        "en-GB",
+        {
+            timeZone: "Asia/Bangkok",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+        }
+    ).formatToParts(date);
+
+return Object.fromEntries(
+    parts
+        .filter((part)=>part.type !== "literal")
+        .map((part)=>[part.type,part.value])
+);
+
+}
+
+function formatBangkokDateTime(value){
+
+if(!value){
+
+    return "";
+
+}
+
+return new Intl.DateTimeFormat(
+    "th-TH",
+    {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    }
+).format(new Date(value));
 
 }
 
@@ -843,7 +897,7 @@ return [
 
 }
 
-async function buildCustomerLocationData(customerLocation){
+async function buildCustomerLocationData(customerLocation,customerMapLink){
 
 const baseData = {
     customerLat: "",
@@ -854,21 +908,24 @@ const baseData = {
     routeDurationMin: ""
 };
 
-if(!customerLocation){
+const parsedMapLocation =
+    customerLocation ||
+    await resolveGoogleMapsLocation(customerMapLink);
+
+if(!parsedMapLocation){
 
     return baseData;
 
 }
 
 const customerLat =
-    Number(customerLocation.lat);
+    Number(parsedMapLocation.lat);
 
 const customerLng =
-    Number(customerLocation.lng);
+    Number(parsedMapLocation.lng);
 
 if(
-    !Number.isFinite(customerLat) ||
-    !Number.isFinite(customerLng)
+    !isValidLatLng(customerLat,customerLng)
 ){
 
     return baseData;
@@ -917,6 +974,164 @@ try{
     return locationData;
 
 }
+
+}
+
+async function resolveGoogleMapsLocation(value){
+
+const input =
+    String(value || "").trim();
+
+if(!input){
+
+    return null;
+
+}
+
+const directLocation =
+    parseGoogleMapsLatLng(input);
+
+if(directLocation){
+
+    return directLocation;
+
+}
+
+let parsedUrl;
+
+try{
+
+    parsedUrl = new URL(input);
+
+}catch(error){
+
+    return null;
+
+}
+
+if(!isAllowedGoogleMapsHost(parsedUrl.hostname)){
+
+    return null;
+
+}
+
+try{
+
+    const controller =
+        new AbortController();
+
+    const timeout =
+        setTimeout(()=>{
+            controller.abort();
+        },3000);
+
+    try{
+
+        const response =
+            await fetch(
+                parsedUrl.toString(),
+                {
+                    method: "GET",
+                    redirect: "follow",
+                    signal: controller.signal
+                }
+            );
+
+        return parseGoogleMapsLatLng(response.url);
+
+    }finally{
+
+        clearTimeout(timeout);
+
+    }
+
+}catch(error){
+
+    console.error("GOOGLE MAPS LOCATION PARSE FAILED",error.message);
+    return null;
+
+}
+
+}
+
+function isAllowedGoogleMapsHost(hostname){
+
+const host =
+    String(hostname || "").toLowerCase();
+
+return (
+    host === "maps.app.goo.gl" ||
+    host === "goo.gl" ||
+    host === "maps.google.com" ||
+    host === "www.google.com" ||
+    host.endsWith(".google.com")
+);
+
+}
+
+function parseGoogleMapsLatLng(value){
+
+const text =
+    String(value || "");
+
+let decodedText =
+    text;
+
+try{
+
+    decodedText =
+        decodeURIComponent(text);
+
+}catch(error){
+
+    decodedText =
+        text;
+
+}
+
+const patterns = [
+    /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]query=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/
+];
+
+for(const pattern of patterns){
+
+    const match =
+        decodedText.match(pattern);
+
+    if(match){
+
+        const location = {
+            lat: Number(match[1]),
+            lng: Number(match[2])
+        };
+
+        if(isValidLatLng(location.lat,location.lng)){
+
+            return location;
+
+        }
+
+    }
+
+}
+
+return null;
+
+}
+
+function isValidLatLng(lat,lng){
+
+return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+);
 
 }
 

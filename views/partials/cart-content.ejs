@@ -29,6 +29,24 @@
 
 <p class="payment-note" data-i18n="paymentNote">Scan to pay or download the QR code.</p>
 
+<div class="location-box">
+    <label class="location-label" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>" data-i18n="mapLinkLabel">Google Maps link</label>
+    <div class="location-actions">
+        <input
+            class="map-link-input"
+            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            data-map-link-input
+            data-i18n-placeholder="mapLinkPlaceholder"
+            placeholder="Paste Google Maps link">
+        <button class="location-btn" type="button" onclick="useCurrentLocation()" data-i18n="useCurrentLocation">Use current location</button>
+    </div>
+    <p class="location-help" data-i18n="mapLinkHelp">Optional. Paste a shared Google Maps location link if you want the shop to see your location.</p>
+    <p class="location-status" aria-live="polite"></p>
+</div>
+
 <div class="action-stack">
     <button class="primary-action send-order-action" type="button" onclick="prepareOrderForShop()" data-i18n="submitOrder">Send order to shop</button>
 </div>

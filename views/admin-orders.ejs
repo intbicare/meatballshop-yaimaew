@@ -42,7 +42,6 @@ body{
 }
 a,
 button{
-    min-height:40px;
     border:1px solid #d8c8b9;
     border-radius:8px;
     background:#fff;
@@ -51,6 +50,18 @@ button{
     font-weight:800;
     text-decoration:none;
     padding:9px 11px;
+}
+a{
+    min-height:40px;
+    display:inline-flex;
+    align-items:center;
+}
+button{
+    min-height:56px;
+    display:grid;
+    place-items:center;
+    line-height:1.22;
+    text-align:center;
 }
 h1{
     margin:0;
@@ -77,10 +88,11 @@ h1{
     border-radius:8px;
     background:#fff;
     box-shadow:0 8px 22px rgba(42,31,20,.08);
+    overflow:hidden;
 }
 .order-head{
-    display:flex;
-    justify-content:space-between;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
     gap:10px;
     align-items:flex-start;
 }
@@ -110,6 +122,8 @@ h1{
 }
 .actions button{
     width:100%;
+    min-height:64px;
+    padding:8px;
 }
 .actions button.active{
     background:var(--ink);
@@ -157,7 +171,7 @@ h1{
                 <strong>฿<%= order.total %></strong>
             </div>
             <div class="meta">
-                <%= new Date(order.createdAt).toLocaleString("th-TH") %>
+                <%= formatBangkokDateTime(order.createdAt) %>
                 <% if(order.customerLat && order.customerLng){ %>
                     | <%= order.customerLat %>,<%= order.customerLng %>
                 <% } %>

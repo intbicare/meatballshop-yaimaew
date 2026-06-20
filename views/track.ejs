@@ -105,12 +105,12 @@ body{
 
             <div class="row">
                 <span class="label">สร้างเมื่อ</span>
-                <div class="value"><%= new Date(order.createdAt).toLocaleString("th-TH") %></div>
+                <div class="value"><%= formatBangkokDateTime(order.createdAt) %></div>
             </div>
 
             <div class="row">
                 <span class="label">อัปเดตล่าสุด</span>
-                <div class="value"><%= new Date(order.updatedAt).toLocaleString("th-TH") %></div>
+                <div class="value"><%= formatBangkokDateTime(order.updatedAt) %></div>
             </div>
         <% } %>
     </section>

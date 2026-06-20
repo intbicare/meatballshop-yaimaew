@@ -42,7 +42,7 @@ SHOP_LNG=100.3520867
 OSRM_BASE_URL=https://router.project-osrm.org
 ```
 
-When the customer presses the send-order button, the app asks for GPS once. If the customer blocks GPS or it fails, the order still goes through. If GPS is available, the app saves the customer map link, straight-line distance, OSRM driving distance, and estimated driving time.
+Customers can paste a Google Maps location link before sending an order. The app extracts latitude/longitude when the link contains coordinates. Customers can also tap the optional current-location button; if GPS is blocked or fails, the order still goes through. If location is available, the app saves the customer map link, straight-line distance, OSRM driving distance, and estimated driving time.
 
 Online orders use `WEB-YYMMDD-HHMM-XXX`, start as `pending_payment`, and get a private tracking link like:
 

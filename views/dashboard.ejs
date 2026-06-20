@@ -481,6 +481,63 @@ input{
     text-align:center;
 }
 
+.location-box{
+    display:grid;
+    gap:8px;
+    margin-top:12px;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fffaf4;
+}
+
+.location-label{
+    color:var(--ink);
+    font-size:.86rem;
+    font-weight:850;
+}
+
+.map-link-input{
+    width:100%;
+    min-height:44px;
+    border:1px solid #d8c8b9;
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+    padding:0 10px;
+    font-size:.9rem;
+}
+
+.location-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+}
+
+.location-btn{
+    min-height:44px;
+    border:1px solid #d8c8b9;
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+    font-weight:850;
+}
+
+.location-help,
+.location-status{
+    min-height:18px;
+    margin:0;
+    color:var(--muted);
+    font-size:.78rem;
+    line-height:1.35;
+}
+
+@media (min-width:480px){
+    .location-actions{
+        grid-template-columns:1fr auto;
+    }
+}
+
 .download-status{
     min-height:20px;
     margin:0;
@@ -750,6 +807,8 @@ let currentLanguage = "th";
 let lastQrTotal = null;
 let currentOrderText = "";
 let customerLocationPromise = null;
+let selectedCustomerLocation = null;
+let customerMapLink = "";
 
 const maxQrTotal = 5000;
 
@@ -832,6 +891,24 @@ const formatBaht = new Intl.NumberFormat("th-TH", {
     maximumFractionDigits: 0
 });
 
+Object.assign(translations.th, {
+    mapLinkLabel: "ลิงก์ Google Maps",
+    mapLinkPlaceholder: "วางลิงก์ตำแหน่งจาก Google Maps",
+    mapLinkHelp: "ไม่บังคับ ใช้ลิงก์ Google Maps ได้ ปลอดภัยกว่าเพราะไม่ต้องกดอนุญาตตำแหน่งในเว็บ",
+    useCurrentLocation: "ใช้ตำแหน่งปัจจุบัน",
+    locationSaved: "บันทึกตำแหน่งแล้ว",
+    locationUnavailable: "ไม่สามารถอ่านตำแหน่งได้ ส่งออเดอร์ต่อได้"
+});
+
+Object.assign(translations.en, {
+    mapLinkLabel: "Google Maps link",
+    mapLinkPlaceholder: "Paste a Google Maps location link",
+    mapLinkHelp: "Optional. Google Maps link is safer because the website does not need location permission.",
+    useCurrentLocation: "Use current location",
+    locationSaved: "Location saved.",
+    locationUnavailable: "Cannot read location. You can still send the order."
+});
+
 document.querySelectorAll(".lang-btn").forEach((button) => {
     button.addEventListener("click", () => setLanguage(button.dataset.lang));
 });
@@ -858,6 +935,21 @@ document.querySelectorAll(".product-card").forEach((card) => {
 document.getElementById("openCartBtn").addEventListener("click", openCartSheet);
 document.querySelectorAll("[data-close-sheet]").forEach((item) => {
     item.addEventListener("click", closeCartSheet);
+});
+
+document.querySelectorAll("[data-map-link-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+        customerMapLink = input.value.trim();
+        selectedCustomerLocation = null;
+
+        document.querySelectorAll("[data-map-link-input]").forEach((otherInput) => {
+            if(otherInput !== input){
+                otherInput.value = input.value;
+            }
+        });
+
+        updateLocationStatus("");
+    });
 });
 
 function addItem(id, name, price){
@@ -1031,7 +1123,7 @@ async function prepareOrderForShop(){
 
     currentOrderText = buildOrderText(order);
     const slipImage = await createSlipImage(order);
-    const customerLocation = await getCustomerLocationOnce();
+    const customerLocation = selectedCustomerLocation;
 
     document.querySelectorAll(".shop-slip-link").forEach((link) => {
         link.href = slipImage;
@@ -1051,7 +1143,8 @@ async function prepareOrderForShop(){
                 ...order,
                 orderText: currentOrderText,
                 slipImage,
-                customerLocation
+                customerLocation,
+                customerMapLink
             })
         });
 
@@ -1363,6 +1456,7 @@ function formatSlipTime(value){
     return new Intl.DateTimeFormat(
         currentLanguage === "th" ? "th-TH" : "en-GB",
         {
+            timeZone: "Asia/Bangkok",
             dateStyle: "short",
             timeStyle: "short"
         }
@@ -1374,20 +1468,53 @@ function ensureOrderNumber(){
         return orderNumber;
     }
 
-    const now = new Date();
+    const parts = getBangkokDateParts(new Date());
     const datePart = [
-        String(now.getFullYear()).slice(-2),
-        String(now.getMonth() + 1).padStart(2, "0"),
-        String(now.getDate()).padStart(2, "0")
+        parts.year.slice(-2),
+        parts.month,
+        parts.day
     ].join("");
     const timePart = [
-        String(now.getHours()).padStart(2, "0"),
-        String(now.getMinutes()).padStart(2, "0")
+        parts.hour,
+        parts.minute
     ].join("");
     const randomPart = Math.floor(100 + Math.random() * 900);
 
     orderNumber = `WEB-${datePart}-${timePart}-${randomPart}`;
     return orderNumber;
+}
+
+function getBangkokDateParts(date){
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+    }).formatToParts(date);
+
+    return Object.fromEntries(
+        parts
+            .filter((part) => part.type !== "literal")
+            .map((part) => [part.type, part.value])
+    );
+}
+
+async function useCurrentLocation(){
+    const location = await getCustomerLocationOnce();
+
+    if(location){
+        selectedCustomerLocation = location;
+        customerMapLink = "";
+        document.querySelectorAll("[data-map-link-input]").forEach((input) => {
+            input.value = "";
+        });
+        updateLocationStatus(t("locationSaved"));
+    }else{
+        updateLocationStatus(t("locationUnavailable"));
+    }
 }
 
 function getCustomerLocationOnce(){
@@ -1497,6 +1624,10 @@ function setLanguage(language){
         item.innerText = t(item.dataset.i18n);
     });
 
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((item) => {
+        item.setAttribute("placeholder", t(item.dataset.i18nPlaceholder));
+    });
+
     document.querySelectorAll(".section-count").forEach((item) => {
         item.innerText = `${item.dataset.count} ${t("itemUnit")}`;
     });
@@ -1518,6 +1649,12 @@ function setLanguage(language){
 
 function updateDownloadStatus(message){
     document.querySelectorAll(".download-status").forEach((item) => {
+        item.innerText = message;
+    });
+}
+
+function updateLocationStatus(message){
+    document.querySelectorAll(".location-status").forEach((item) => {
         item.innerText = message;
     });
 }
