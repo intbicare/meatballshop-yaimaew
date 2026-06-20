@@ -29,6 +29,31 @@
 
 <p class="payment-note" data-i18n="paymentNote">Scan to pay or download the QR code.</p>
 
+<div class="note-box">
+    <label class="note-field" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'foodNoteSheet' : 'foodNoteDesktop' %>">
+        <span class="note-label" data-i18n="foodNoteLabel">Food note</span>
+        <textarea
+            class="note-input"
+            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'foodNoteSheet' : 'foodNoteDesktop' %>"
+            rows="3"
+            maxlength="500"
+            data-note-input="foodNote"
+            data-i18n-placeholder="foodNotePlaceholder"
+            placeholder="Example: not spicy, extra sauce"></textarea>
+    </label>
+    <label class="note-field" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'riderNoteSheet' : 'riderNoteDesktop' %>">
+        <span class="note-label" data-i18n="riderNoteLabel">Rider note</span>
+        <textarea
+            class="note-input"
+            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'riderNoteSheet' : 'riderNoteDesktop' %>"
+            rows="3"
+            maxlength="500"
+            data-note-input="riderNote"
+            data-i18n-placeholder="riderNotePlaceholder"
+            placeholder="Example: call when arrived"></textarea>
+    </label>
+</div>
+
 <div class="location-box">
     <label class="location-label" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>" data-i18n="mapLinkLabel">Google Maps link</label>
     <div class="location-actions">

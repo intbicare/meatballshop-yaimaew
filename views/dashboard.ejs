@@ -491,6 +491,36 @@ input{
     background:#fffaf4;
 }
 
+.note-box{
+    display:grid;
+    gap:8px;
+    margin-top:12px;
+}
+
+.note-field{
+    display:grid;
+    gap:5px;
+}
+
+.note-label{
+    color:var(--ink);
+    font-size:.86rem;
+    font-weight:850;
+}
+
+.note-input{
+    width:100%;
+    min-height:72px;
+    resize:vertical;
+    border:1px solid #d8c8b9;
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+    padding:9px 10px;
+    font-size:.9rem;
+    line-height:1.35;
+}
+
 .location-label{
     color:var(--ink);
     font-size:.86rem;
@@ -809,6 +839,10 @@ let currentOrderText = "";
 let customerLocationPromise = null;
 let selectedCustomerLocation = null;
 let customerMapLink = "";
+const orderNotes = {
+    foodNote: "",
+    riderNote: ""
+};
 
 const maxQrTotal = 5000;
 
@@ -897,7 +931,11 @@ Object.assign(translations.th, {
     mapLinkHelp: "ไม่บังคับ ใช้ลิงก์ Google Maps ได้ ปลอดภัยกว่าเพราะไม่ต้องกดอนุญาตตำแหน่งในเว็บ",
     useCurrentLocation: "ใช้ตำแหน่งปัจจุบัน",
     locationSaved: "บันทึกตำแหน่งแล้ว",
-    locationUnavailable: "ไม่สามารถอ่านตำแหน่งได้ ส่งออเดอร์ต่อได้"
+    locationUnavailable: "ไม่สามารถอ่านตำแหน่งได้ ส่งออเดอร์ต่อได้",
+    foodNoteLabel: "หมายเหตุอาหาร",
+    foodNotePlaceholder: "เช่น ไม่เผ็ด แยกน้ำจิ้ม เพิ่มน้ำจิ้ม",
+    riderNoteLabel: "หมายเหตุสำหรับไรเดอร์",
+    riderNotePlaceholder: "เช่น โทรเมื่อถึง จุดรับสินค้า หรือรายละเอียดส่งของ"
 });
 
 Object.assign(translations.en, {
@@ -906,7 +944,11 @@ Object.assign(translations.en, {
     mapLinkHelp: "Optional. Google Maps link is safer because the website does not need location permission.",
     useCurrentLocation: "Use current location",
     locationSaved: "Location saved.",
-    locationUnavailable: "Cannot read location. You can still send the order."
+    locationUnavailable: "Cannot read location. You can still send the order.",
+    foodNoteLabel: "Food note",
+    foodNotePlaceholder: "Example: not spicy, separate sauce, extra sauce",
+    riderNoteLabel: "Rider note",
+    riderNotePlaceholder: "Example: call when arrived, pickup point, delivery details"
 });
 
 document.querySelectorAll(".lang-btn").forEach((button) => {
@@ -949,6 +991,19 @@ document.querySelectorAll("[data-map-link-input]").forEach((input) => {
         });
 
         updateLocationStatus("");
+    });
+});
+
+document.querySelectorAll("[data-note-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+        const noteKey = input.dataset.noteInput;
+        orderNotes[noteKey] = input.value.trim();
+
+        document.querySelectorAll(`[data-note-input="${noteKey}"]`).forEach((otherInput) => {
+            if(otherInput !== input){
+                otherInput.value = input.value;
+            }
+        });
     });
 });
 
@@ -1144,7 +1199,9 @@ async function prepareOrderForShop(){
                 orderText: currentOrderText,
                 slipImage,
                 customerLocation,
-                customerMapLink
+                customerMapLink,
+                foodNote: order.foodNote,
+                riderNote: order.riderNote
             })
         });
 
@@ -1243,6 +1300,8 @@ function buildOrderPayload(){
         shopName,
         language: currentLanguage,
         total,
+        foodNote: orderNotes.foodNote,
+        riderNote: orderNotes.riderNote,
         createdAt: new Date().toISOString(),
         items: items.map((item) => ({
             id: item.id,
@@ -1268,7 +1327,19 @@ function buildOrderText(order){
         t("paidText")
     ];
 
+    appendNoteLines(lines, order);
+
     return lines.join("\n");
+}
+
+function appendNoteLines(lines, order){
+    if(order.foodNote){
+        lines.push("", `${t("foodNoteLabel")}: ${order.foodNote}`);
+    }
+
+    if(order.riderNote){
+        lines.push("", `${t("riderNoteLabel")}: ${order.riderNote}`);
+    }
 }
 
 async function createSlipImage(order){
@@ -1322,6 +1393,8 @@ async function createSlipImage(order){
     ctx.fillText(`฿${formatBaht.format(order.total)}`, 260, y);
 
     y += 42;
+
+    y = drawSlipNotes(ctx, order, y);
 
     const qrImage =
         await loadImage(`/qr/${order.total}`);
@@ -1381,11 +1454,51 @@ function calculateSlipHeight(order){
     height += 2;
     height += 18;
     height += 42;
+
+    measureCtx.font = "600 13px system-ui, sans-serif";
+    height += getSlipNoteHeight(measureCtx, order);
+
     height += 160;
     height += 10;
     height += 28;
 
     return Math.max(720,height + 24);
+}
+
+function getSlipNoteHeight(ctx, order){
+    let height = 0;
+
+    if(order.foodNote){
+        height += 24;
+        height += getWrappedLineCount(ctx, `${t("foodNoteLabel")}: ${order.foodNote}`, 364) * 17;
+    }
+
+    if(order.riderNote){
+        height += 24;
+        height += getWrappedLineCount(ctx, `${t("riderNoteLabel")}: ${order.riderNote}`, 364) * 17;
+    }
+
+    return height;
+}
+
+function drawSlipNotes(ctx, order, y){
+    if(!order.foodNote && !order.riderNote){
+        return y;
+    }
+
+    ctx.font = "600 13px system-ui, sans-serif";
+
+    if(order.foodNote){
+        y = drawWrappedText(ctx, `${t("foodNoteLabel")}: ${order.foodNote}`, 18, y, 364, 17);
+        y += 7;
+    }
+
+    if(order.riderNote){
+        y = drawWrappedText(ctx, `${t("riderNoteLabel")}: ${order.riderNote}`, 18, y, 364, 17);
+        y += 7;
+    }
+
+    return y + 10;
 }
 
 function getWrappedLineCount(ctx, text, maxWidth){

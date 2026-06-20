@@ -500,7 +500,9 @@ const {
     slipImage,
     orderText,
     customerLocation,
-    customerMapLink
+    customerMapLink,
+    foodNote,
+    riderNote
 } = req.body;
 
 if(
@@ -549,9 +551,17 @@ const locationData =
         customerMapLink
     );
 
+const noteData = {
+    foodNote: cleanOrderNote(foodNote),
+    riderNote: cleanOrderNote(riderNote)
+};
+
 const savedOrderText =
     appendOrderLinks(
-        orderText || "",
+        appendServerNoteLines(
+            orderText || "",
+            noteData
+        ),
         trackingUrl,
         locationData
     );
@@ -580,6 +590,7 @@ fs.writeFileSync(
             status,
             items,
             itemsText: buildItemsText(items),
+            ...noteData,
             total,
             trackingToken,
             trackingUrl,
@@ -610,6 +621,7 @@ if(process.env.DISCORD_WEBHOOK_URL){
             orderText: savedOrderText,
             imageUrl: publicImageUrl,
             trackingUrl,
+            ...noteData,
             ...locationData
         });
 
@@ -744,6 +756,16 @@ return [
         value: order.customerLat && order.customerLng ?
             `${order.customerLat},${order.customerLng}` :
             "-",
+        inline: false
+    },
+    {
+        name: "Food note",
+        value: order.foodNote || "-",
+        inline: false
+    },
+    {
+        name: "Rider note",
+        value: order.riderNote || "-",
         inline: false
     },
     {
@@ -894,6 +916,44 @@ return [
         "",
     locationData.customerMapUrl ? `Customer map: ${locationData.customerMapUrl}` : ""
 ].filter(Boolean).join("\n");
+
+}
+
+function cleanOrderNote(value){
+
+return String(value || "")
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .trim()
+    .slice(0,500);
+
+}
+
+function appendServerNoteLines(orderText,noteData){
+
+const lines = [
+    orderText
+];
+
+if(
+    noteData.foodNote &&
+    !orderText.includes(noteData.foodNote)
+){
+
+    lines.push(`Food note: ${noteData.foodNote}`);
+
+}
+
+if(
+    noteData.riderNote &&
+    !orderText.includes(noteData.riderNote)
+){
+
+    lines.push(`Rider note: ${noteData.riderNote}`);
+
+}
+
+return lines.filter(Boolean).join("\n");
 
 }
 
