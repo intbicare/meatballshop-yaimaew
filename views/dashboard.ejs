@@ -1154,7 +1154,7 @@ function buildOrderText(order){
 async function createSlipImage(order){
     const canvas = document.createElement("canvas");
     canvas.width = 400;
-    canvas.height = 720;
+    canvas.height = calculateSlipHeight(order);
 
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
@@ -1232,6 +1232,62 @@ async function createSlipImage(order){
     ctx.textAlign = "left";
 
     return canvas.toDataURL("image/png");
+}
+
+function calculateSlipHeight(order){
+    const measureCanvas =
+        document.createElement("canvas");
+
+    const measureCtx =
+        measureCanvas.getContext("2d");
+
+    let height = 18;
+
+    measureCtx.font = "700 18px system-ui, sans-serif";
+    height += getWrappedLineCount(measureCtx, shopName, 364) * 22;
+
+    height += 34;
+    height += 34;
+    height += 24;
+    height += 28;
+    height += 14;
+
+    measureCtx.font = "600 14px system-ui, sans-serif";
+    order.items.forEach((item) => {
+        height += getWrappedLineCount(measureCtx, item.name, 360) * 17;
+        height += 24;
+    });
+
+    height += 2;
+    height += 18;
+    height += 42;
+    height += 160;
+    height += 10;
+    height += 28;
+
+    return Math.max(720,height + 24);
+}
+
+function getWrappedLineCount(ctx, text, maxWidth){
+    const words = String(text).split(" ");
+    let line = "";
+    let count = 0;
+
+    words.forEach((word) => {
+        const testLine = line ? `${line} ${word}` : word;
+        if(ctx.measureText(testLine).width > maxWidth && line){
+            count += 1;
+            line = word;
+        }else{
+            line = testLine;
+        }
+    });
+
+    if(line){
+        count += 1;
+    }
+
+    return Math.max(1,count);
 }
 
 function loadImage(src){
