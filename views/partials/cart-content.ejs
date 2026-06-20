@@ -31,8 +31,13 @@
 
 <div class="action-stack">
     <button class="primary-action send-order-action" type="button" onclick="prepareOrderForShop()" data-i18n="submitOrder">Send order to shop</button>
-    <button class="secondary-action copy-order-text-btn d-none" type="button" onclick="copyOrderText()" data-i18n="copyOrderText">Copy order text</button>
-    <a class="secondary-action shop-slip-link d-none" href="#" download data-i18n="downloadSlip">Download shop slip</a>
 </div>
 
-<p class="download-status" aria-live="polite"></p>
+<div class="send-result-panel d-none" aria-live="polite">
+    <strong class="send-result-title" data-i18n="sentToShop">Sent to shop</strong>
+    <p class="download-status"></p>
+    <div class="backup-actions">
+        <button class="secondary-action copy-order-text-btn" type="button" onclick="copyOrderText()" data-i18n="copyOrderText">Copy order text</button>
+        <a class="secondary-action shop-slip-link" href="#" download data-i18n="downloadSlip">Download shop slip</a>
+    </div>
+</div>
