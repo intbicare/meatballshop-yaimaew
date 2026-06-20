@@ -753,6 +753,9 @@ const translations = {
         copiedOrderText: "คัดลอกข้อความออเดอร์แล้ว",
         downloadSlip: "ดาวน์โหลดรูปออเดอร์",
         orderPrepared: "คัดลอกข้อความ หรือดาวน์โหลดรูปเพื่อส่งให้ร้านทาง Facebook",
+        discordSent: "ส่งแจ้งเตือนให้ร้านแล้ว",
+        discordNotConfigured: "เตรียมออเดอร์แล้ว ยังไม่ได้เชื่อม Discord",
+        discordFailed: "แจ้งเตือน Discord ไม่สำเร็จ กรุณาส่งรูปหรือข้อความให้ร้าน",
         addItemFirst: "เพิ่มสินค้าก่อน",
         addItemAlert: "กรุณาเลือกสินค้าก่อน",
         massOrderAlert: "ยอดเกิน 5,000 บาท กรุณาติดต่อร้านโดยตรงสำหรับออเดอร์จำนวนมาก",
@@ -784,6 +787,9 @@ const translations = {
         copiedOrderText: "Copied order text",
         downloadSlip: "Download order image",
         orderPrepared: "Copy the text or download the image and send it to the shop on Facebook.",
+        discordSent: "Shop notification sent.",
+        discordNotConfigured: "Order prepared. Discord is not connected yet.",
+        discordFailed: "Discord notification failed. Send the image or text to the shop.",
         addItemFirst: "Add item first",
         addItemAlert: "Please add an item first.",
         massOrderAlert: "Orders over 5,000 baht need direct shop contact for mass order.",
@@ -1015,6 +1021,33 @@ async function prepareOrderForShop(){
     });
 
     updateDownloadStatus(t("orderPrepared"));
+
+    try{
+        const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                ...order,
+                orderText: currentOrderText,
+                slipImage
+            })
+        });
+
+        if(!response.ok){
+            throw new Error("Order notification failed");
+        }
+
+        const result = await response.json();
+        updateDownloadStatus(
+            result.discordNotified ?
+                t("discordSent") :
+                t("discordNotConfigured")
+        );
+    }catch(error){
+        updateDownloadStatus(t("discordFailed"));
+    }
 }
 
 async function copyOrderText(){

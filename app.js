@@ -146,7 +146,8 @@ const {
     orderNumber,
     items,
     total,
-    slipImage
+    slipImage,
+    orderText
 } = req.body;
 
 if(
@@ -200,18 +201,51 @@ fs.writeFileSync(
             items,
             total,
             createdAt,
-            imageUrl: `/orders/${imageFile}`
+            imageUrl: `/orders/${imageFile}`,
+            orderText: orderText || ""
         },
         null,
         2
     )
 );
 
+const publicImageUrl =
+    `${req.protocol}://${req.get("host")}/orders/${imageFile}`;
+
+let discordNotified = false;
+
+if(process.env.DISCORD_WEBHOOK_URL){
+
+    try{
+
+        await sendDiscordOrderNotification({
+            orderNumber,
+            items,
+            total,
+            orderText,
+            imageUrl: publicImageUrl
+        });
+
+        discordNotified = true;
+
+    }catch(error){
+
+        console.error(
+            "DISCORD WEBHOOK FAILED",
+            orderNumber,
+            error.message
+        );
+
+    }
+
+}
+
 res.json({
     ok: true,
     orderNumber,
     imageUrl: `/orders/${imageFile}`,
-    jsonUrl: `/orders/${jsonFile}`
+    jsonUrl: `/orders/${jsonFile}`,
+    discordNotified
 });
 
 
@@ -233,6 +267,66 @@ port,
 
 
 );
+
+async function sendDiscordOrderNotification(order){
+
+const itemLines =
+    order.items.map((item)=>{
+
+        return `- ${item.name} x${item.qty} = ฿${item.lineTotal}`;
+
+    }).join("\n");
+
+const content =
+    order.orderText ||
+    [
+        `New order: ${order.orderNumber}`,
+        itemLines,
+        `Total: ฿${order.total}`,
+        order.imageUrl
+    ].join("\n");
+
+const response =
+    await fetch(
+        process.env.DISCORD_WEBHOOK_URL,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username: "Meatball Order",
+                content,
+                embeds: [
+                    {
+                        title: `Order ${order.orderNumber}`,
+                        description: itemLines,
+                        color: 15872536,
+                        fields: [
+                            {
+                                name: "Total",
+                                value: `฿${order.total}`,
+                                inline: true
+                            }
+                        ],
+                        image: {
+                            url: order.imageUrl
+                        }
+                    }
+                ]
+            })
+        }
+    );
+
+if(!response.ok){
+
+    throw new Error(
+        `Discord responded ${response.status}`
+    );
+
+}
+
+}
 
 function loadEnvFile(){
 

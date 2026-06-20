@@ -29,3 +29,13 @@ http://localhost:3000/dashboard
 This app can run on Node hosting such as Render.
 
 Generated order slips are saved to local disk in `generated/orders`. On many free hosts, local files can disappear after restart or redeploy, so this is best for testing or a simple first version.
+
+## Discord Notifications
+
+Create a Discord channel webhook, then set this environment variable in Render:
+
+```text
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+When the customer presses the send-order button, the app sends the order text and slip image link to Discord. The customer still gets copy/download buttons as a backup.
