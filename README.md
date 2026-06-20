@@ -36,9 +36,21 @@ Create a Discord channel webhook, then set this environment variable in Render:
 
 ```text
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+APP_BASE_URL=https://your-render-url.onrender.com
+SHOP_LAT=13.7426371
+SHOP_LNG=100.3520867
+OSRM_BASE_URL=https://router.project-osrm.org
 ```
 
-When the customer presses the send-order button, the app sends the order text and slip image link to Discord. The customer still gets copy/download buttons as a backup.
+When the customer presses the send-order button, the app asks for GPS once. If the customer blocks GPS or it fails, the order still goes through. If GPS is available, the app saves the customer map link, straight-line distance, OSRM driving distance, and estimated driving time.
+
+Online orders use `WEB-YYMMDD-HHMM-XXX`, start as `pending_payment`, and get a private tracking link like:
+
+```text
+/track/WEB-260621-1200-123?t=random-token
+```
+
+The tracking page only shows customer-safe order details.
 
 ## Admin Quick Sale
 

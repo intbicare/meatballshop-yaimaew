@@ -749,6 +749,7 @@ let orderNumber = "";
 let currentLanguage = "th";
 let lastQrTotal = null;
 let currentOrderText = "";
+let customerLocationPromise = null;
 
 const maxQrTotal = 5000;
 
@@ -1030,6 +1031,7 @@ async function prepareOrderForShop(){
 
     currentOrderText = buildOrderText(order);
     const slipImage = await createSlipImage(order);
+    const customerLocation = await getCustomerLocationOnce();
 
     document.querySelectorAll(".shop-slip-link").forEach((link) => {
         link.href = slipImage;
@@ -1048,7 +1050,8 @@ async function prepareOrderForShop(){
             body: JSON.stringify({
                 ...order,
                 orderText: currentOrderText,
-                slipImage
+                slipImage,
+                customerLocation
             })
         });
 
@@ -1057,6 +1060,19 @@ async function prepareOrderForShop(){
         }
 
         const result = await response.json();
+        if(result.orderNumber && result.orderNumber !== orderNumber){
+            orderNumber = result.orderNumber;
+            renderCart();
+        }
+
+        if(result.trackingUrl){
+            currentOrderText = [
+                currentOrderText,
+                "",
+                `Tracking: ${result.trackingUrl}`
+            ].join("\n");
+        }
+
         updateDownloadStatus(
             result.discordNotified ?
                 t("discordSent") :
@@ -1359,8 +1375,40 @@ function ensureOrderNumber(){
     ].join("");
     const randomPart = Math.floor(100 + Math.random() * 900);
 
-    orderNumber = `MB-${datePart}-${timePart}-${randomPart}`;
+    orderNumber = `WEB-${datePart}-${timePart}-${randomPart}`;
     return orderNumber;
+}
+
+function getCustomerLocationOnce(){
+    if(customerLocationPromise){
+        return customerLocationPromise;
+    }
+
+    customerLocationPromise = new Promise((resolve) => {
+        if(!navigator.geolocation){
+            resolve(null);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+            },
+            () => {
+                resolve(null);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 8000,
+                maximumAge: 300000
+            }
+        );
+    });
+
+    return customerLocationPromise;
 }
 
 function getItemCount(){

@@ -4,6 +4,7 @@ const session = require("express-session");
 const app = express();
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const quickSales = [];
 
 loadEnvFile();
@@ -327,19 +328,103 @@ app.get(
 
 );
 
+app.get("/track/",(req,res)=>{
+
+
+res.status(404).render(
+    "track",
+    {
+        order: null,
+        error: "Tracking link is missing an order number."
+    }
+);
+
+
+});
+
+app.get("/track/:orderNumber",(req,res)=>{
+
+
+const safeOrderNumber =
+    String(req.params.orderNumber || "").replace(/[^a-zA-Z0-9-]/g,"");
+
+const token =
+    String(req.query.t || "");
+
+const orderPath =
+    path.join(__dirname,"generated","orders",`${safeOrderNumber}.json`);
+
+if(
+    !safeOrderNumber ||
+    !token ||
+    !fs.existsSync(orderPath)
+){
+
+    return res.status(404).render(
+        "track",
+        {
+            order: null,
+            error: "Order not found."
+        }
+    );
+
+}
+
+try{
+
+    const savedOrder =
+        JSON.parse(fs.readFileSync(orderPath,"utf8"));
+
+    if(savedOrder.trackingToken !== token){
+
+        return res.status(403).render(
+            "track",
+            {
+                order: null,
+                error: "Tracking link is not valid."
+            }
+        );
+
+    }
+
+    return res.render(
+        "track",
+        {
+            order: getCustomerSafeOrder(savedOrder),
+            error: ""
+        }
+    );
+
+}catch(error){
+
+    console.error(error);
+
+    return res.status(500).render(
+        "track",
+        {
+            order: null,
+            error: "Cannot load order."
+        }
+    );
+
+}
+
+
+});
+
 app.post("/api/orders",async (req,res)=>{
 
 
 const {
-    orderNumber,
+    orderNumber: submittedOrderNumber,
     items,
     total,
     slipImage,
-    orderText
+    orderText,
+    customerLocation
 } = req.body;
 
 if(
-    !orderNumber ||
     !Array.isArray(items) ||
     items.length === 0 ||
     !slipImage
@@ -350,6 +435,9 @@ if(
     });
 
 }
+
+const orderNumber =
+    getWebOrderNumber(submittedOrderNumber);
 
 const safeOrderNumber =
     String(orderNumber).replace(/[^a-zA-Z0-9-]/g,"");
@@ -366,6 +454,25 @@ fs.mkdirSync(
 
 const createdAt =
     new Date().toISOString();
+
+const status =
+    "pending_payment";
+
+const trackingToken =
+    createTrackingToken();
+
+const trackingUrl =
+    `${getAppBaseUrl(req)}/track/${safeOrderNumber}?t=${trackingToken}`;
+
+const locationData =
+    await buildCustomerLocationData(customerLocation);
+
+const savedOrderText =
+    appendOrderLinks(
+        orderText || "",
+        trackingUrl,
+        locationData.customerMapUrl
+    );
 
 const pngBase64 =
     String(slipImage).replace(/^data:image\/png;base64,/,"");
@@ -385,12 +492,19 @@ fs.writeFileSync(
     path.join(ordersDir,jsonFile),
     JSON.stringify(
         {
-            orderNumber,
-            items,
-            total,
             createdAt,
+            orderNumber,
+            channel: "online",
+            status,
+            items,
+            itemsText: buildItemsText(items),
+            total,
+            trackingToken,
+            trackingUrl,
+            updatedAt: createdAt,
             imageUrl: `/orders/${imageFile}`,
-            orderText: orderText || ""
+            orderText: savedOrderText,
+            ...locationData
         },
         null,
         2
@@ -408,10 +522,13 @@ if(process.env.DISCORD_WEBHOOK_URL){
 
         await sendDiscordOrderNotification({
             orderNumber,
+            status,
             items,
             total,
-            orderText,
-            imageUrl: publicImageUrl
+            orderText: savedOrderText,
+            imageUrl: publicImageUrl,
+            trackingUrl,
+            ...locationData
         });
 
         discordNotified = true;
@@ -431,6 +548,8 @@ if(process.env.DISCORD_WEBHOOK_URL){
 res.json({
     ok: true,
     orderNumber,
+    status,
+    trackingUrl,
     imageUrl: `/orders/${imageFile}`,
     jsonUrl: `/orders/${jsonFile}`,
     discordNotified
@@ -471,6 +590,7 @@ const content =
         `New order: ${order.orderNumber}`,
         itemLines,
         `Total: ฿${order.total}`,
+        `Tracking: ${order.trackingUrl}`,
         order.imageUrl
     ].join("\n");
 
@@ -490,13 +610,13 @@ const response =
                         title: `Order ${order.orderNumber}`,
                         description: itemLines,
                         color: 15872536,
-                        fields: [
+                        fields: buildDiscordOrderFields(order).concat([
                             {
                                 name: "Total",
                                 value: `฿${order.total}`,
                                 inline: true
                             }
-                        ],
+                        ]),
                         image: {
                             url: order.imageUrl
                         }
@@ -513,6 +633,306 @@ if(!response.ok){
     );
 
 }
+
+}
+
+function buildDiscordOrderFields(order){
+
+return [
+    {
+        name: "Status",
+        value: order.status || "pending_payment",
+        inline: true
+    },
+    {
+        name: "Tracking",
+        value: order.trackingUrl || "-",
+        inline: false
+    },
+    {
+        name: "Customer map",
+        value: order.customerMapUrl || "-",
+        inline: false
+    },
+    {
+        name: "Straight distance",
+        value: order.straightDistanceKm ?
+            `${order.straightDistanceKm} km` :
+            "-",
+        inline: true
+    },
+    {
+        name: "Route distance",
+        value: order.routeDistanceKm ?
+            `${order.routeDistanceKm} km` :
+            "-",
+        inline: true
+    },
+    {
+        name: "Route time",
+        value: order.routeDurationMin ?
+            `${order.routeDurationMin} min` :
+            "-",
+        inline: true
+    }
+];
+
+}
+
+function createWebOrderNumber(){
+
+const now =
+    new Date();
+
+const datePart =
+    [
+        String(now.getFullYear()).slice(-2),
+        String(now.getMonth() + 1).padStart(2,"0"),
+        String(now.getDate()).padStart(2,"0")
+    ].join("");
+
+const timePart =
+    [
+        String(now.getHours()).padStart(2,"0"),
+        String(now.getMinutes()).padStart(2,"0")
+    ].join("");
+
+const randomPart =
+    Math.floor(100 + Math.random() * 900);
+
+return `WEB-${datePart}-${timePart}-${randomPart}`;
+
+}
+
+function getWebOrderNumber(value){
+
+const orderNumber =
+    String(value || "").trim();
+
+if(/^WEB-\d{6}-\d{4}-\d{3}$/.test(orderNumber)){
+
+    return orderNumber;
+
+}
+
+return createWebOrderNumber();
+
+}
+
+function createTrackingToken(){
+
+return crypto.randomBytes(18).toString("hex");
+
+}
+
+function getAppBaseUrl(req){
+
+return (
+    process.env.APP_BASE_URL ||
+    `${req.protocol}://${req.get("host")}`
+).replace(/\/$/,"");
+
+}
+
+function buildItemsText(items){
+
+return items.map((item)=>{
+
+    return `${item.name} x${item.qty} = ${item.lineTotal}`;
+
+}).join("\n");
+
+}
+
+function appendOrderLinks(orderText,trackingUrl,customerMapUrl){
+
+return [
+    orderText,
+    trackingUrl ? `Tracking: ${trackingUrl}` : "",
+    customerMapUrl ? `Customer map: ${customerMapUrl}` : ""
+].filter(Boolean).join("\n");
+
+}
+
+async function buildCustomerLocationData(customerLocation){
+
+const baseData = {
+    customerLat: "",
+    customerLng: "",
+    customerMapUrl: "",
+    straightDistanceKm: "",
+    routeDistanceKm: "",
+    routeDurationMin: ""
+};
+
+if(!customerLocation){
+
+    return baseData;
+
+}
+
+const customerLat =
+    Number(customerLocation.lat);
+
+const customerLng =
+    Number(customerLocation.lng);
+
+if(
+    !Number.isFinite(customerLat) ||
+    !Number.isFinite(customerLng)
+){
+
+    return baseData;
+
+}
+
+const shopLat =
+    Number(process.env.SHOP_LAT || 13.7426371);
+
+const shopLng =
+    Number(process.env.SHOP_LNG || 100.3520867);
+
+const locationData = {
+    ...baseData,
+    customerLat,
+    customerLng,
+    customerMapUrl: `https://maps.google.com/?q=${customerLat},${customerLng}`,
+    straightDistanceKm: roundDistance(
+        getHaversineDistanceKm(
+            shopLat,
+            shopLng,
+            customerLat,
+            customerLng
+        )
+    )
+};
+
+try{
+
+    const routeData =
+        await getOsrmRouteDistance({
+            shopLat,
+            shopLng,
+            customerLat,
+            customerLng
+        });
+
+    return {
+        ...locationData,
+        ...routeData
+    };
+
+}catch(error){
+
+    console.error("OSRM ROUTE FAILED",error.message);
+    return locationData;
+
+}
+
+}
+
+async function getOsrmRouteDistance({
+    shopLat,
+    shopLng,
+    customerLat,
+    customerLng
+}){
+
+const osrmBaseUrl =
+    (process.env.OSRM_BASE_URL || "https://router.project-osrm.org")
+        .replace(/\/$/,"");
+
+const url =
+    `${osrmBaseUrl}/route/v1/driving/${shopLng},${shopLat};${customerLng},${customerLat}?overview=false`;
+
+const response =
+    await fetch(url);
+
+if(!response.ok){
+
+    throw new Error(`OSRM responded ${response.status}`);
+
+}
+
+const data =
+    await response.json();
+
+const route =
+    data.routes?.[0];
+
+if(!route){
+
+    throw new Error("OSRM route missing");
+
+}
+
+return {
+    routeDistanceKm: roundDistance(route.distance / 1000),
+    routeDurationMin: Math.round(route.duration / 60)
+};
+
+}
+
+function getHaversineDistanceKm(lat1,lng1,lat2,lng2){
+
+const earthRadiusKm =
+    6371;
+
+const dLat =
+    toRadians(lat2 - lat1);
+
+const dLng =
+    toRadians(lng2 - lng1);
+
+const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+    Math.cos(toRadians(lat2)) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
+
+return earthRadiusKm * 2 * Math.atan2(
+    Math.sqrt(a),
+    Math.sqrt(1 - a)
+);
+
+}
+
+function toRadians(value){
+
+return value * Math.PI / 180;
+
+}
+
+function roundDistance(value){
+
+return Math.round(value * 100) / 100;
+
+}
+
+function getCustomerSafeOrder(order){
+
+return {
+    orderNumber: order.orderNumber,
+    status: order.status,
+    statusText: getThaiStatusText(order.status),
+    total: order.total,
+    itemsText: order.itemsText,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt
+};
+
+}
+
+function getThaiStatusText(status){
+
+return {
+    pending_payment: "รอร้านเช็กยอดชำระ",
+    paid: "จ่ายแล้ว / ร้านกำลังทำออเดอร์",
+    amount_issue: "ยอดชำระไม่ตรง",
+    done: "เสร็จแล้ว รับสินค้าได้",
+    cancelled: "ออเดอร์ถูกยกเลิก"
+}[status] || status;
 
 }
 
