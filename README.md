@@ -60,6 +60,19 @@ Staff can update online order status at:
 
 The customer tracking page stays read-only. When staff changes the status, the tracking page shows the new status after refresh.
 
+## Order Links
+
+Staff generates customer order links at:
+
+```text
+/admin/order-links
+```
+
+- Booth QR auto-rotates daily.
+- Online link is manually rotated and can be enabled or disabled.
+- Customers can view the menu without a token, but submitting an order requires a valid booth or online link.
+- The admin page can download local QR PNG files and send the current links to Discord.
+
 ## Admin Quick Sale
 
 Admin route:

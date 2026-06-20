@@ -843,6 +843,7 @@ const orderNotes = {
     foodNote: "",
     riderNote: ""
 };
+const orderGate = getOrderGateFromUrl();
 
 const maxQrTotal = 5000;
 
@@ -935,7 +936,8 @@ Object.assign(translations.th, {
     foodNoteLabel: "หมายเหตุอาหาร",
     foodNotePlaceholder: "เช่น ไม่สามารถทานหมู/ไก่/หมึก",
     riderNoteLabel: "หมายเหตุสำหรับไรเดอร์",
-    riderNotePlaceholder: "เช่น โทรเมื่อถึง จุดรับสินค้า หรือรายละเอียดส่งของ"
+    riderNotePlaceholder: "เช่น โทรเมื่อถึง จุดรับสินค้า หรือรายละเอียดส่งของ",
+    invalidOrderLink: "กรุณาเปิดลิงก์สั่งซื้อจากร้านอีกครั้ง"
 });
 
 Object.assign(translations.en, {
@@ -948,7 +950,8 @@ Object.assign(translations.en, {
     foodNoteLabel: "Food note",
     foodNotePlaceholder: "Example: not spicy, separate sauce, extra sauce",
     riderNoteLabel: "Rider note",
-    riderNotePlaceholder: "Example: call when arrived, pickup point, delivery details"
+    riderNotePlaceholder: "Example: call when arrived, pickup point, delivery details",
+    invalidOrderLink: "Please open the order link from the shop again."
 });
 
 document.querySelectorAll(".lang-btn").forEach((button) => {
@@ -1151,6 +1154,14 @@ function updatePaymentState(total){
     });
 }
 
+function getOrderGateFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    return {
+        source: params.get("source") || "",
+        token: params.get("t") || ""
+    };
+}
+
 function clearSubmittedOrder(){
     currentOrderText = "";
     document.querySelectorAll(".send-result-panel").forEach((panel) => {
@@ -1201,12 +1212,14 @@ async function prepareOrderForShop(){
                 customerLocation,
                 customerMapLink,
                 foodNote: order.foodNote,
-                riderNote: order.riderNote
+                riderNote: order.riderNote,
+                orderGate
             })
         });
 
         if(!response.ok){
-            throw new Error("Order notification failed");
+            const errorResult = await response.json().catch(() => ({}));
+            throw new Error(errorResult.error || "Order notification failed");
         }
 
         const result = await response.json();
@@ -1240,7 +1253,7 @@ async function prepareOrderForShop(){
                 t("discordNotConfigured")
         );
     }catch(error){
-        updateDownloadStatus(t("discordFailed"));
+        updateDownloadStatus(error.message || t("discordFailed"));
     }
 }
 

@@ -5,4 +5,5 @@ npm-debug.log*
 *.sqbpro
 generated/orders/*.png
 generated/orders/*.json
+generated/order-links.json
 !.gitkeep

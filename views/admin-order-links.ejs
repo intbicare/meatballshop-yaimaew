@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order Links</title>
+<style>
+:root{
+    --ink:#171412;
+    --muted:#716a62;
+    --line:#e8e0d7;
+    --paper:#fffaf4;
+    --green:#16784c;
+    --red:#b42318;
+}
+*{
+    box-sizing:border-box;
+}
+body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.shell{
+    width:min(920px,100%);
+    margin:0 auto;
+    padding:14px;
+}
+.topbar,
+.nav,
+.actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+.topbar{
+    justify-content:space-between;
+    margin-bottom:14px;
+}
+h1{
+    margin:0;
+    font-size:1.35rem;
+}
+.panel{
+    margin-bottom:12px;
+    padding:14px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 8px 22px rgba(42,31,20,.08);
+}
+.message{
+    margin:0 0 12px;
+    padding:10px;
+    border-radius:8px;
+    font-weight:750;
+}
+.error{
+    background:#fff0ee;
+    color:var(--red);
+}
+.success{
+    background:#eefbf2;
+    color:var(--green);
+}
+a,
+button{
+    min-height:42px;
+    border:1px solid #d8c8b9;
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+    font:inherit;
+    font-weight:800;
+    text-decoration:none;
+    padding:9px 11px;
+}
+.primary{
+    background:var(--ink);
+    color:#fff;
+}
+.danger{
+    color:#fff;
+    background:var(--red);
+    border-color:var(--red);
+}
+.url{
+    width:100%;
+    min-height:46px;
+    margin:8px 0;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fffaf4;
+    color:var(--ink);
+    font-family:ui-monospace,Consolas,monospace;
+    font-size:.85rem;
+    overflow-wrap:anywhere;
+}
+.meta{
+    color:var(--muted);
+    font-size:.84rem;
+}
+.status{
+    font-weight:850;
+    color:var(--green);
+}
+.status.off{
+    color:var(--red);
+}
+</style>
+</head>
+<body>
+<main class="shell">
+    <div class="topbar">
+        <h1>Order Links</h1>
+        <div class="nav">
+            <a href="/admin/orders">Online Orders</a>
+            <a href="/admin/quick-sale">Quick Sale</a>
+            <form method="POST" action="/admin/logout">
+                <button type="submit">Logout</button>
+            </form>
+        </div>
+    </div>
+
+    <% if(error){ %>
+        <p class="message error"><%= error %></p>
+    <% } %>
+    <% if(success){ %>
+        <p class="message success"><%= success %></p>
+    <% } %>
+
+    <section class="panel">
+        <h2>Booth QR</h2>
+        <p class="meta">Use this for market booth customers. It auto-rotates daily.</p>
+        <div class="url" id="boothUrl"><%= links.booth.url %></div>
+        <p class="meta">Rotated: <%= formatBangkokDateTime(links.booth.rotatedAt) %></p>
+        <div class="actions">
+            <button type="button" onclick="copyText('boothUrl')">Copy link</button>
+            <a class="primary" href="<%= links.booth.qrUrl %>">Download QR</a>
+            <form method="POST" action="/admin/order-links/rotate">
+                <input type="hidden" name="type" value="booth">
+                <button class="danger" type="submit">Rotate booth</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Online Link</h2>
+        <p class="meta">Use this for Facebook or LINE customers. Rotate manually if spam happens.</p>
+        <p class="status <%= links.online.enabled ? '' : 'off' %>">
+            <%= links.online.enabled ? 'Online orders enabled' : 'Online orders disabled' %>
+        </p>
+        <div class="url" id="onlineUrl"><%= links.online.url %></div>
+        <p class="meta">Rotated: <%= formatBangkokDateTime(links.online.rotatedAt) %></p>
+        <div class="actions">
+            <button type="button" onclick="copyText('onlineUrl')">Copy link</button>
+            <a class="primary" href="<%= links.online.qrUrl %>">Download QR</a>
+            <form method="POST" action="/admin/order-links/online-toggle">
+                <input type="hidden" name="enabled" value="<%= links.online.enabled ? 'false' : 'true' %>">
+                <button type="submit"><%= links.online.enabled ? 'Disable online' : 'Enable online' %></button>
+            </form>
+            <form method="POST" action="/admin/order-links/rotate">
+                <input type="hidden" name="type" value="online">
+                <button class="danger" type="submit">Rotate online</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Send To Discord</h2>
+        <p class="meta">Sends the current booth and online links to your Discord channel.</p>
+        <form method="POST" action="/admin/order-links/notify">
+            <button class="primary" type="submit">Send links to Discord</button>
+        </form>
+    </section>
+</main>
+<script>
+async function copyText(id){
+    const text = document.getElementById(id).innerText.trim();
+    try{
+        await navigator.clipboard.writeText(text);
+    }catch(error){
+        const input = document.createElement("input");
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+    }
+}
+</script>
+</body>
+</html>

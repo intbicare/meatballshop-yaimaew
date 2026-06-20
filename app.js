@@ -1,5 +1,6 @@
 const express = require("express");
 const session = require("express-session");
+const QRCode = require("qrcode");
 
 const app = express();
 const path = require("path");
@@ -171,6 +172,162 @@ req.session.destroy(()=>{
     );
 
 });
+
+
+});
+
+app.get("/admin/order-links",requireAdmin,(req,res)=>{
+
+
+renderOrderLinks(
+    req,
+    res,
+    "",
+    ""
+);
+
+
+});
+
+app.post("/admin/order-links/rotate",requireAdmin,(req,res)=>{
+
+
+const type =
+    req.body.type || "";
+
+try{
+
+    rotateOrderLink(type);
+
+    renderOrderLinks(
+        req,
+        res,
+        "",
+        `Rotated ${type} link.`
+    );
+
+}catch(error){
+
+    console.error(error);
+
+    renderOrderLinks(
+        req,
+        res,
+        "Cannot rotate link.",
+        ""
+    );
+
+}
+
+
+});
+
+app.post("/admin/order-links/online-toggle",requireAdmin,(req,res)=>{
+
+
+const enabled =
+    req.body.enabled === "true";
+
+try{
+
+    setOnlineOrderLinkEnabled(enabled);
+
+    renderOrderLinks(
+        req,
+        res,
+        "",
+        enabled ? "Online orders enabled." : "Online orders disabled."
+    );
+
+}catch(error){
+
+    console.error(error);
+
+    renderOrderLinks(
+        req,
+        res,
+        "Cannot update online ordering.",
+        ""
+    );
+
+}
+
+
+});
+
+app.post("/admin/order-links/notify",requireAdmin,async (req,res)=>{
+
+
+try{
+
+    await sendOrderLinksDiscordNotification(
+        buildOrderLinkViewModel(req)
+    );
+
+    renderOrderLinks(
+        req,
+        res,
+        "",
+        "Sent links to Discord."
+    );
+
+}catch(error){
+
+    console.error(error);
+
+    renderOrderLinks(
+        req,
+        res,
+        "Cannot send links to Discord.",
+        ""
+    );
+
+}
+
+
+});
+
+app.get("/admin/order-links/:type/qr.png",requireAdmin,async (req,res)=>{
+
+
+try{
+
+    const links =
+        buildOrderLinkViewModel(req);
+
+    const link =
+        links[req.params.type]?.url;
+
+    if(!link){
+
+        return res.status(404).send("Link not found");
+
+    }
+
+    const png =
+        await QRCode.toBuffer(
+            link,
+            {
+                type: "png",
+                width: 720,
+                margin: 2,
+                errorCorrectionLevel: "M"
+            }
+        );
+
+    res.setHeader("Content-Type","image/png");
+    res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${req.params.type}-order-link.png"`
+    );
+    res.send(png);
+
+}catch(error){
+
+    console.error(error);
+    res.status(500).send("Cannot generate QR");
+
+}
 
 
 });
@@ -502,7 +659,8 @@ const {
     customerLocation,
     customerMapLink,
     foodNote,
-    riderNote
+    riderNote,
+    orderGate
 } = req.body;
 
 if(
@@ -513,6 +671,18 @@ if(
 
     return res.status(400).json({
         error: "Invalid order"
+    });
+
+}
+
+const gate =
+    validateOrderGate(orderGate);
+
+if(!gate.ok){
+
+    return res.status(403).json({
+        error: gate.message,
+        code: gate.code
     });
 
 }
@@ -586,7 +756,8 @@ fs.writeFileSync(
         {
             createdAt,
             orderNumber,
-            channel: "online",
+            channel: gate.source === "booth" ? "booth" : "online",
+            source: gate.source,
             status,
             items,
             itemsText: buildItemsText(items),
@@ -616,6 +787,7 @@ if(process.env.DISCORD_WEBHOOK_URL){
         await sendDiscordOrderNotification({
             orderNumber,
             status,
+            source: gate.source,
             items,
             total,
             orderText: savedOrderText,
@@ -1297,6 +1469,345 @@ return {
     done: "เสร็จแล้ว รับสินค้าได้",
     cancelled: "ออเดอร์ถูกยกเลิก"
 }[status] || status;
+
+}
+
+function renderOrderLinks(req,res,error,success){
+
+res.render(
+    "admin-order-links",
+    {
+        links: buildOrderLinkViewModel(req),
+        error,
+        success
+    }
+);
+
+}
+
+function buildOrderLinkViewModel(req){
+
+const data =
+    ensureOrderLinks();
+
+const baseUrl =
+    getAppBaseUrl(req);
+
+return {
+    booth: {
+        ...data.booth,
+        url: `${baseUrl}/dashboard?source=booth&t=${data.booth.token}`,
+        qrUrl: "/admin/order-links/booth/qr.png"
+    },
+    online: {
+        ...data.online,
+        url: `${baseUrl}/dashboard?source=online&t=${data.online.token}`,
+        qrUrl: "/admin/order-links/online/qr.png"
+    }
+};
+
+}
+
+function ensureOrderLinks(){
+
+const todayKey =
+    getBangkokDateKey(new Date());
+
+let data =
+    readOrderLinksFile();
+
+if(!data){
+
+    data = {
+        booth: createOrderLinkEntry(todayKey),
+        online: {
+            ...createOrderLinkEntry(todayKey),
+            enabled: true
+        }
+    };
+
+    writeOrderLinksFile(data);
+    return data;
+
+}
+
+let changed =
+    false;
+
+if(!data.booth?.token){
+
+    data.booth = createOrderLinkEntry(todayKey);
+    changed = true;
+
+}
+
+if(data.booth.autoDate !== todayKey){
+
+    data.booth = createOrderLinkEntry(todayKey);
+    changed = true;
+
+}
+
+if(!data.online?.token){
+
+    data.online = {
+        ...createOrderLinkEntry(todayKey),
+        enabled: true
+    };
+    changed = true;
+
+}
+
+if(typeof data.online.enabled !== "boolean"){
+
+    data.online.enabled = true;
+    changed = true;
+
+}
+
+if(changed){
+
+    writeOrderLinksFile(data);
+
+}
+
+return data;
+
+}
+
+function createOrderLinkEntry(autoDate){
+
+const now =
+    new Date().toISOString();
+
+return {
+    token: createOrderGateToken(),
+    autoDate,
+    rotatedAt: now
+};
+
+}
+
+function rotateOrderLink(type){
+
+if(!["booth","online"].includes(type)){
+
+    throw new Error("Invalid link type");
+
+}
+
+const data =
+    ensureOrderLinks();
+
+const entry =
+    createOrderLinkEntry(getBangkokDateKey(new Date()));
+
+if(type === "online"){
+
+    entry.enabled = data.online.enabled !== false;
+
+}
+
+data[type] = entry;
+
+writeOrderLinksFile(data);
+
+return data;
+
+}
+
+function setOnlineOrderLinkEnabled(enabled){
+
+const data =
+    ensureOrderLinks();
+
+data.online.enabled = enabled;
+
+writeOrderLinksFile(data);
+
+return data;
+
+}
+
+function validateOrderGate(orderGate){
+
+const source =
+    String(orderGate?.source || "").trim();
+
+const token =
+    String(orderGate?.token || "").trim();
+
+if(!source || !token){
+
+    return {
+        ok: false,
+        code: "missing_order_link",
+        message: "Please open the order link from the shop again."
+    };
+
+}
+
+const data =
+    ensureOrderLinks();
+
+if(source === "booth"){
+
+    return {
+        ok: token === data.booth.token,
+        source,
+        code: token === data.booth.token ? "" : "invalid_order_link",
+        message: "Please scan the shop QR code again."
+    };
+
+}
+
+if(source === "online"){
+
+    if(data.online.enabled === false){
+
+        return {
+            ok: false,
+            source,
+            code: "online_orders_disabled",
+            message: "Online ordering is closed right now."
+        };
+
+    }
+
+    return {
+        ok: token === data.online.token,
+        source,
+        code: token === data.online.token ? "" : "invalid_order_link",
+        message: "Please open the order link from the shop again."
+    };
+
+}
+
+return {
+    ok: false,
+    code: "invalid_order_source",
+    message: "Please open the order link from the shop again."
+};
+
+}
+
+function getOrderLinksPath(){
+
+return path.join(__dirname,"generated","order-links.json");
+
+}
+
+function readOrderLinksFile(){
+
+const filePath =
+    getOrderLinksPath();
+
+if(!fs.existsSync(filePath)){
+
+    return null;
+
+}
+
+try{
+
+    return JSON.parse(fs.readFileSync(filePath,"utf8"));
+
+}catch(error){
+
+    console.error("ORDER LINKS READ FAILED",error.message);
+    return null;
+
+}
+
+}
+
+function writeOrderLinksFile(data){
+
+const filePath =
+    getOrderLinksPath();
+
+fs.mkdirSync(
+    path.dirname(filePath),
+    {
+        recursive: true
+    }
+);
+
+fs.writeFileSync(
+    filePath,
+    JSON.stringify(data,null,2)
+);
+
+}
+
+function createOrderGateToken(){
+
+return crypto.randomBytes(12).toString("hex");
+
+}
+
+function getBangkokDateKey(date){
+
+const parts =
+    getBangkokDateParts(date);
+
+return `${parts.year}-${parts.month}-${parts.day}`;
+
+}
+
+async function sendOrderLinksDiscordNotification(links){
+
+if(!process.env.DISCORD_WEBHOOK_URL){
+
+    throw new Error("Missing DISCORD_WEBHOOK_URL");
+
+}
+
+const response =
+    await fetch(
+        process.env.DISCORD_WEBHOOK_URL,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username: "Order Links",
+                content: [
+                    "**Order links**",
+                    `Booth QR: ${links.booth.url}`,
+                    `Online: ${links.online.enabled ? links.online.url : "disabled"}`
+                ].join("\n"),
+                embeds: [
+                    {
+                        title: "Current Order Links",
+                        color: 14790035,
+                        fields: [
+                            {
+                                name: "Booth QR",
+                                value: links.booth.url,
+                                inline: false
+                            },
+                            {
+                                name: "Online",
+                                value: links.online.enabled ?
+                                    links.online.url :
+                                    "Disabled",
+                                inline: false
+                            }
+                        ],
+                        timestamp: new Date().toISOString()
+                    }
+                ]
+            })
+        }
+    );
+
+if(!response.ok){
+
+    throw new Error(`Discord responded ${response.status}`);
+
+}
 
 }
 
