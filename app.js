@@ -1494,6 +1494,10 @@ const baseUrl =
     getAppBaseUrl(req);
 
 return {
+    menu: {
+        url: `${baseUrl}/dashboard?mode=menu`,
+        qrUrl: "/admin/order-links/menu/qr.png"
+    },
     booth: {
         ...data.booth,
         url: `${baseUrl}/dashboard?source=booth&t=${data.booth.token}`,

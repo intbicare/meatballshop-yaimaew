@@ -133,6 +133,16 @@ button{
     <% } %>
 
     <section class="panel">
+        <h2>Menu & Price QR</h2>
+        <p class="meta">Static QR for customers to scan and view menu/prices only. This link does not allow order submission.</p>
+        <div class="url" id="menuUrl"><%= links.menu.url %></div>
+        <div class="actions">
+            <button type="button" onclick="copyText('menuUrl')">Copy link</button>
+            <a class="primary" href="<%= links.menu.qrUrl %>">Download QR</a>
+        </div>
+    </section>
+
+    <section class="panel">
         <h2>Booth QR</h2>
         <p class="meta">Use this for market booth customers. It auto-rotates daily.</p>
         <div class="url" id="boothUrl"><%= links.booth.url %></div>

@@ -70,6 +70,7 @@ Staff generates customer order links at:
 
 - Booth QR auto-rotates daily.
 - Online link is manually rotated and can be enabled or disabled.
+- Menu QR is static and lets customers view menu/prices only.
 - Customers can view the menu without a token, but submitting an order requires a valid booth or online link.
 - The admin page can download local QR PNG files and send the current links to Discord.
 
