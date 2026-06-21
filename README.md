@@ -28,7 +28,13 @@ http://localhost:3000/dashboard
 
 This app can run on Node hosting such as Render.
 
-Generated order slips are saved to local disk in `generated/orders`. On many free hosts, local files can disappear after restart or redeploy, so this is best for testing or a simple first version.
+For paid Render services, attach a persistent disk and set:
+
+```text
+DATA_DIR=/var/data
+```
+
+The included `render.yaml` uses the Starter plan, mounts a 1 GB disk at `/var/data`, and points generated order data there. Without `DATA_DIR`, local development still saves to `generated/`.
 
 ## Discord Notifications
 
@@ -37,12 +43,13 @@ Create a Discord channel webhook, then set this environment variable in Render:
 ```text
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 APP_BASE_URL=https://your-render-url.onrender.com
+DATA_DIR=/var/data
 SHOP_LAT=13.7426371
 SHOP_LNG=100.3520867
 OSRM_BASE_URL=https://router.project-osrm.org
 ```
 
-Customers can paste a Google Maps location link before sending an order. The app extracts latitude/longitude when the link contains coordinates. Customers can also tap the optional current-location button; if GPS is blocked or fails, the order still goes through. If location is available, the app saves the customer map link, straight-line distance, OSRM driving distance, and estimated driving time.
+Customers can add their name, phone number, and map link before sending an order. The map link is saved as text. The app asks for browser GPS once on the ordering page; if GPS is blocked or fails, the order still goes through. If GPS is available, the app saves a generated customer map URL, straight-line distance, OSRM driving distance, and estimated driving time.
 
 Online orders use `WEB-YYMMDD-HHMM-XXX`, start as `pending_payment`, and get a private tracking link like:
 

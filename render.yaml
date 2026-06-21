@@ -2,6 +2,14 @@ services:
   - type: web
     name: meatballshop-yaimaew
     env: node
-    plan: free
+    plan: starter
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: meatballshop-data
+      mountPath: /var/data
+      sizeGB: 1

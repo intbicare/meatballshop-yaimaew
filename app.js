@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const quickSales = [];
 
 loadEnvFile();
+ensureDataDirectories();
 
 app.set("trust proxy", true);
 
@@ -39,7 +40,13 @@ app.use(express.json({
 limit: "10mb"
 }));
 
-app.use("/orders", express.static(path.join(__dirname, "generated", "orders")));
+app.use("/orders", express.static(getOrdersDir()));
+
+app.get("/health",(req,res)=>{
+
+res.status(200).send("ok");
+
+});
 
 app.get("/qr/:amount",async (req,res)=>{
 
@@ -612,7 +619,7 @@ const token =
     String(req.query.t || "");
 
 const orderPath =
-    path.join(__dirname,"generated","orders",`${safeOrderNumber}.json`);
+    path.join(getOrdersDir(),`${safeOrderNumber}.json`);
 
 if(
     !safeOrderNumber ||
@@ -721,7 +728,7 @@ const safeOrderNumber =
     String(orderNumber).replace(/[^a-zA-Z0-9-]/g,"");
 
 const ordersDir =
-    path.join(__dirname,"generated","orders");
+    getOrdersDir();
 
 fs.mkdirSync(
     ordersDir,
@@ -1648,7 +1655,7 @@ return {
 
 function getOrderLinksPath(){
 
-return path.join(__dirname,"generated","order-links.json");
+return path.join(getDataDir(),"order-links.json");
 
 }
 
@@ -1783,7 +1790,7 @@ return [
 
 function getOrdersDir(){
 
-return path.join(__dirname,"generated","orders");
+return path.join(getDataDir(),"orders");
 
 }
 
@@ -1829,6 +1836,25 @@ return fs.readdirSync(ordersDir)
     .sort((a,b)=>{
         return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
+
+}
+
+function getDataDir(){
+
+return process.env.DATA_DIR ?
+    path.resolve(process.env.DATA_DIR) :
+    path.join(__dirname,"generated");
+
+}
+
+function ensureDataDirectories(){
+
+fs.mkdirSync(
+    getOrdersDir(),
+    {
+        recursive: true
+    }
+);
 
 }
 
