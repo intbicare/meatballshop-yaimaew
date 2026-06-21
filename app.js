@@ -529,6 +529,29 @@ app.get(
 "/dashboard",
 (req,res)=>{
 
+    const mode =
+        String(req.query.mode || "").trim();
+
+    const isMenuOnly =
+        mode === "menu";
+
+    if(!isMenuOnly){
+
+        const gateResult =
+            validateOrderGate({
+                source: req.query.source,
+                token: req.query.t
+            });
+
+        if(!gateResult.ok){
+
+            return res.status(403).send(
+                gateResult.message
+            );
+
+        }
+
+    }
 
     fs.readFile(
         path.join(__dirname,"database","products.json"),
@@ -551,7 +574,9 @@ app.get(
             res.render(
                 "dashboard",
                 {
-                    products
+                    products,
+                    isMenuOnly,
+                    shopPhone: "0651167368"
                 }
             );
 
