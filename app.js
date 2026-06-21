@@ -1,6 +1,9 @@
 const express = require("express");
 const session = require("express-session");
 const QRCode = require("qrcode");
+const { getAppBaseUrl, getConfig } = require("./src/config");
+const { createOrderLinkStorage } = require("./src/storage/orderLinkStorage");
+const { createOrderStorage, sanitizeOrderNumber } = require("./src/storage/orderStorage");
 
 const app = express();
 const path = require("path");
@@ -9,7 +12,17 @@ const crypto = require("crypto");
 const quickSales = [];
 
 loadEnvFile();
-ensureDataDirectories();
+
+const config = getConfig();
+const orderStorage = createOrderStorage({
+    dataDir: config.dataDir,
+    getStatusText: getThaiStatusText
+});
+const orderLinkStorage = createOrderLinkStorage({
+    dataDir: config.dataDir
+});
+
+orderStorage.ensure();
 
 app.set("trust proxy", true);
 
@@ -19,13 +32,13 @@ app.locals.formatBangkokDateTime = formatBangkokDateTime;
 
 app.use(
 session({
-secret: process.env.SESSION_SECRET || "dev-session-secret",
+secret: config.sessionSecret,
 resave: false,
 saveUninitialized: false,
 cookie: {
 httpOnly: true,
 sameSite: "lax",
-secure: process.env.NODE_ENV === "production"
+secure: config.isProduction
 }
 })
 );
@@ -40,7 +53,7 @@ app.use(express.json({
 limit: "10mb"
 }));
 
-app.use("/orders", express.static(getOrdersDir()));
+app.use("/orders", express.static(orderStorage.getOrdersDir()));
 
 app.get("/health",(req,res)=>{
 
@@ -147,8 +160,8 @@ const password =
     req.body.password || "";
 
 if(
-    process.env.ADMIN_PASSWORD &&
-    password === process.env.ADMIN_PASSWORD
+    config.adminPassword &&
+    password === config.adminPassword
 ){
 
     req.session.adminAuthed = true;
@@ -613,18 +626,15 @@ app.get("/track/:orderNumber",(req,res)=>{
 
 
 const safeOrderNumber =
-    String(req.params.orderNumber || "").replace(/[^a-zA-Z0-9-]/g,"");
+    sanitizeOrderNumber(req.params.orderNumber);
 
 const token =
     String(req.query.t || "");
 
-const orderPath =
-    path.join(getOrdersDir(),`${safeOrderNumber}.json`);
-
 if(
     !safeOrderNumber ||
     !token ||
-    !fs.existsSync(orderPath)
+    !orderStorage.exists(safeOrderNumber)
 ){
 
     return res.status(404).render(
@@ -640,7 +650,7 @@ if(
 try{
 
     const savedOrder =
-        JSON.parse(fs.readFileSync(orderPath,"utf8"));
+        orderStorage.read(safeOrderNumber);
 
     if(savedOrder.trackingToken !== token){
 
@@ -725,17 +735,7 @@ const orderNumber =
     getWebOrderNumber(submittedOrderNumber);
 
 const safeOrderNumber =
-    String(orderNumber).replace(/[^a-zA-Z0-9-]/g,"");
-
-const ordersDir =
-    getOrdersDir();
-
-fs.mkdirSync(
-    ordersDir,
-    {
-        recursive: true
-    }
-);
+    sanitizeOrderNumber(orderNumber);
 
 const createdAt =
     new Date().toISOString();
@@ -787,35 +787,31 @@ const imageFile =
 const jsonFile =
     `${safeOrderNumber}.json`;
 
-fs.writeFileSync(
-    path.join(ordersDir,imageFile),
+orderStorage.writeImage(
+    imageFile,
     Buffer.from(pngBase64,"base64")
 );
 
-fs.writeFileSync(
-    path.join(ordersDir,jsonFile),
-    JSON.stringify(
-        {
-            createdAt,
-            orderNumber,
-            channel: gate.source === "booth" ? "booth" : "online",
-            source: gate.source,
-            status,
-            items,
-            itemsText: buildItemsText(items),
-            ...contactData,
-            ...noteData,
-            total,
-            trackingToken,
-            trackingUrl,
-            updatedAt: createdAt,
-            imageUrl: `/orders/${imageFile}`,
-            orderText: savedOrderText,
-            ...locationData
-        },
-        null,
-        2
-    )
+orderStorage.write(
+    safeOrderNumber,
+    {
+        createdAt,
+        orderNumber,
+        channel: gate.source === "booth" ? "booth" : "online",
+        source: gate.source,
+        status,
+        items,
+        itemsText: buildItemsText(items),
+        ...contactData,
+        ...noteData,
+        total,
+        trackingToken,
+        trackingUrl,
+        updatedAt: createdAt,
+        imageUrl: `/orders/${imageFile}`,
+        orderText: savedOrderText,
+        ...locationData
+    }
 );
 
 const publicImageUrl =
@@ -823,7 +819,7 @@ const publicImageUrl =
 
 let discordNotified = false;
 
-if(process.env.DISCORD_WEBHOOK_URL){
+if(config.discordWebhookUrl){
 
     try{
 
@@ -873,7 +869,7 @@ res.json({
 });
 
 const port =
-    process.env.PORT || 3000;
+    config.port;
 
 app.listen(
 port,
@@ -910,7 +906,7 @@ const content =
 
 const response =
     await fetch(
-        process.env.DISCORD_WEBHOOK_URL,
+        config.discordWebhookUrl,
         {
             method: "POST",
             headers: {
@@ -1119,15 +1115,6 @@ return crypto.randomBytes(18).toString("hex");
 
 }
 
-function getAppBaseUrl(req){
-
-return (
-    process.env.APP_BASE_URL ||
-    `${req.protocol}://${req.get("host")}`
-).replace(/\/$/,"");
-
-}
-
 function buildItemsText(items){
 
 return items.map((item)=>{
@@ -1268,10 +1255,10 @@ if(
 }
 
 const shopLat =
-    Number(process.env.SHOP_LAT || 13.7426371);
+    config.shopLat;
 
 const shopLng =
-    Number(process.env.SHOP_LNG || 100.3520867);
+    config.shopLng;
 
 const locationData = {
     ...baseData,
@@ -1333,7 +1320,7 @@ async function getOsrmRouteDistance({
 }){
 
 const osrmBaseUrl =
-    (process.env.OSRM_BASE_URL || "https://router.project-osrm.org")
+    config.osrmBaseUrl
         .replace(/\/$/,"");
 
 const url =
@@ -1653,52 +1640,15 @@ return {
 
 }
 
-function getOrderLinksPath(){
-
-return path.join(getDataDir(),"order-links.json");
-
-}
-
 function readOrderLinksFile(){
 
-const filePath =
-    getOrderLinksPath();
-
-if(!fs.existsSync(filePath)){
-
-    return null;
-
-}
-
-try{
-
-    return JSON.parse(fs.readFileSync(filePath,"utf8"));
-
-}catch(error){
-
-    console.error("ORDER LINKS READ FAILED",error.message);
-    return null;
-
-}
+return orderLinkStorage.read();
 
 }
 
 function writeOrderLinksFile(data){
 
-const filePath =
-    getOrderLinksPath();
-
-fs.mkdirSync(
-    path.dirname(filePath),
-    {
-        recursive: true
-    }
-);
-
-fs.writeFileSync(
-    filePath,
-    JSON.stringify(data,null,2)
-);
+orderLinkStorage.write(data);
 
 }
 
@@ -1719,7 +1669,7 @@ return `${parts.year}-${parts.month}-${parts.day}`;
 
 async function sendOrderLinksDiscordNotification(links){
 
-if(!process.env.DISCORD_WEBHOOK_URL){
+if(!config.discordWebhookUrl){
 
     throw new Error("Missing DISCORD_WEBHOOK_URL");
 
@@ -1727,7 +1677,7 @@ if(!process.env.DISCORD_WEBHOOK_URL){
 
 const response =
     await fetch(
-        process.env.DISCORD_WEBHOOK_URL,
+        config.discordWebhookUrl,
         {
             method: "POST",
             headers: {
@@ -1788,73 +1738,9 @@ return [
 
 }
 
-function getOrdersDir(){
-
-return path.join(getDataDir(),"orders");
-
-}
-
 function getOnlineOrders(){
 
-const ordersDir =
-    getOrdersDir();
-
-if(!fs.existsSync(ordersDir)){
-
-    return [];
-
-}
-
-return fs.readdirSync(ordersDir)
-    .filter((file)=>{
-        return /^WEB-\d{6}-\d{4}-\d{3}\.json$/.test(file);
-    })
-    .map((file)=>{
-        try{
-
-            const order =
-                JSON.parse(
-                    fs.readFileSync(
-                        path.join(ordersDir,file),
-                        "utf8"
-                    )
-                );
-
-            return {
-                ...order,
-                statusText: getThaiStatusText(order.status)
-            };
-
-        }catch(error){
-
-            console.error("ORDER READ FAILED",file,error.message);
-            return null;
-
-        }
-    })
-    .filter(Boolean)
-    .sort((a,b)=>{
-        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-
-}
-
-function getDataDir(){
-
-return process.env.DATA_DIR ?
-    path.resolve(process.env.DATA_DIR) :
-    path.join(__dirname,"generated");
-
-}
-
-function ensureDataDirectories(){
-
-fs.mkdirSync(
-    getOrdersDir(),
-    {
-        recursive: true
-    }
-);
+return orderStorage.listOnlineOrders();
 
 }
 
@@ -1867,7 +1753,7 @@ if(!getOnlineOrderStatuses().some((item)=>item.value === status)){
 }
 
 const safeOrderNumber =
-    String(orderNumber || "").replace(/[^a-zA-Z0-9-]/g,"");
+    sanitizeOrderNumber(orderNumber);
 
 if(!/^WEB-\d{6}-\d{4}-\d{3}$/.test(safeOrderNumber)){
 
@@ -1875,25 +1761,19 @@ if(!/^WEB-\d{6}-\d{4}-\d{3}$/.test(safeOrderNumber)){
 
 }
 
-const orderPath =
-    path.join(getOrdersDir(),`${safeOrderNumber}.json`);
-
-if(!fs.existsSync(orderPath)){
+if(!orderStorage.exists(safeOrderNumber)){
 
     throw new Error("Order not found");
 
 }
 
 const order =
-    JSON.parse(fs.readFileSync(orderPath,"utf8"));
+    orderStorage.read(safeOrderNumber);
 
 order.status = status;
 order.updatedAt = new Date().toISOString();
 
-fs.writeFileSync(
-    orderPath,
-    JSON.stringify(order,null,2)
-);
+orderStorage.write(safeOrderNumber,order);
 
 return order;
 
@@ -2039,7 +1919,7 @@ return sale;
 
 async function sendQuickSaleDiscordNotification(sale,action){
 
-if(!process.env.DISCORD_WEBHOOK_URL){
+if(!config.discordWebhookUrl){
 
     throw new Error("Missing DISCORD_WEBHOOK_URL");
 
@@ -2050,7 +1930,7 @@ const isCancelled =
 
 const response =
     await fetch(
-        process.env.DISCORD_WEBHOOK_URL,
+        config.discordWebhookUrl,
         {
             method: "POST",
             headers: {

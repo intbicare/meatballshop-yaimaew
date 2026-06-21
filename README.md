@@ -11,6 +11,20 @@ Customer ordering page for the fried snack shop.
 - Blocks QR and order submit above 5,000 baht and asks customers to contact the shop.
 - Saves a shop-side order slip PNG and JSON file when the order is submitted.
 
+## Code Layout
+
+The app is being organized gradually:
+
+```text
+app.js                    Main Express app and routes
+src/config.js             Environment/config defaults
+src/storage/orderStorage.js
+src/storage/orderLinkStorage.js
+views/                    EJS pages and partials
+```
+
+Next safe refactor steps are moving Discord, order-link logic, and admin/customer routes out of `app.js`.
+
 ## Run Locally
 
 ```bash
