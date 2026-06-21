@@ -30,6 +30,43 @@
 <p class="payment-note" data-i18n="paymentNote">Scan to pay or download the QR code.</p>
 
 <div class="note-box">
+    <label class="note-field" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'customerNameSheet' : 'customerNameDesktop' %>">
+        <span class="note-label" data-i18n="customerNameLabel">Customer name</span>
+        <input
+            class="note-input"
+            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'customerNameSheet' : 'customerNameDesktop' %>"
+            type="text"
+            maxlength="100"
+            autocomplete="name"
+            data-contact-input="customerName"
+            data-i18n-placeholder="customerNamePlaceholder"
+            placeholder="Your name">
+    </label>
+    <label class="note-field" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'customerPhoneSheet' : 'customerPhoneDesktop' %>">
+        <span class="note-label" data-i18n="customerPhoneLabel">Phone number</span>
+        <input
+            class="note-input"
+            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'customerPhoneSheet' : 'customerPhoneDesktop' %>"
+            type="tel"
+            inputmode="tel"
+            maxlength="40"
+            autocomplete="tel"
+            data-contact-input="customerPhone"
+            data-i18n-placeholder="customerPhonePlaceholder"
+            placeholder="Phone number">
+    </label>
+    <label class="note-field" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>">
+        <span class="note-label" data-i18n="mapLinkLabel">Map link</span>
+        <input
+            class="note-input"
+            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            data-map-link-input
+            data-i18n-placeholder="mapLinkPlaceholder"
+            placeholder="Paste map link">
+    </label>
     <label class="note-field" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'foodNoteSheet' : 'foodNoteDesktop' %>">
         <span class="note-label" data-i18n="foodNoteLabel">Food note</span>
         <textarea
@@ -55,20 +92,8 @@
 </div>
 
 <div class="location-box">
-    <label class="location-label" for="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>" data-i18n="mapLinkLabel">Google Maps link</label>
-    <div class="location-actions">
-        <input
-            class="map-link-input"
-            id="<%= (typeof sheet !== 'undefined' && sheet) ? 'mapLinkSheet' : 'mapLinkDesktop' %>"
-            type="url"
-            inputmode="url"
-            autocomplete="off"
-            data-map-link-input
-            data-i18n-placeholder="mapLinkPlaceholder"
-            placeholder="Paste Google Maps link">
-        <button class="location-btn" type="button" onclick="useCurrentLocation()" data-i18n="useCurrentLocation">Use current location</button>
-    </div>
-    <p class="location-help" data-i18n="mapLinkHelp">Optional. Paste a shared Google Maps location link if you want the shop to see your location.</p>
+    <button class="location-btn" type="button" onclick="useCurrentLocation()" data-i18n="useCurrentLocation">Use current location</button>
+    <p class="location-help" data-i18n="mapLinkHelp">Optional. Location is used only to estimate distance from the shop.</p>
     <p class="location-status" aria-live="polite"></p>
 </div>
 

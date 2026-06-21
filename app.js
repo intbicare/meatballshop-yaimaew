@@ -683,6 +683,8 @@ const {
     orderText,
     customerLocation,
     customerMapLink,
+    customerName,
+    customerPhone,
     foodNote,
     riderNote,
     orderGate
@@ -742,9 +744,14 @@ const trackingUrl =
 
 const locationData =
     await buildCustomerLocationData(
-        customerLocation,
-        customerMapLink
+        customerLocation
     );
+
+const contactData = {
+    customerName: cleanShortText(customerName,100),
+    customerPhone: cleanShortText(customerPhone,40),
+    customerMapLink: cleanShortText(customerMapLink,700)
+};
 
 const noteData = {
     foodNote: cleanOrderNote(foodNote),
@@ -753,9 +760,12 @@ const noteData = {
 
 const savedOrderText =
     appendOrderLinks(
-        appendServerNoteLines(
-            orderText || "",
-            noteData
+        appendServerCustomerLines(
+            appendServerNoteLines(
+                orderText || "",
+                noteData
+            ),
+            contactData
         ),
         trackingUrl,
         locationData
@@ -786,6 +796,7 @@ fs.writeFileSync(
             status,
             items,
             itemsText: buildItemsText(items),
+            ...contactData,
             ...noteData,
             total,
             trackingToken,
@@ -818,6 +829,7 @@ if(process.env.DISCORD_WEBHOOK_URL){
             orderText: savedOrderText,
             imageUrl: publicImageUrl,
             trackingUrl,
+            ...contactData,
             ...noteData,
             ...locationData
         });
@@ -844,6 +856,7 @@ res.json({
     customerLat: locationData.customerLat,
     customerLng: locationData.customerLng,
     customerMapUrl: locationData.customerMapUrl,
+    customerMapLink: contactData.customerMapLink,
     imageUrl: `/orders/${imageFile}`,
     jsonUrl: `/orders/${jsonFile}`,
     discordNotified
@@ -941,6 +954,21 @@ return [
     {
         name: "Tracking",
         value: order.trackingUrl || "-",
+        inline: false
+    },
+    {
+        name: "Customer name",
+        value: order.customerName || "-",
+        inline: true
+    },
+    {
+        name: "Customer phone",
+        value: order.customerPhone || "-",
+        inline: true
+    },
+    {
+        name: "Customer map link",
+        value: order.customerMapLink || "-",
         inline: false
     },
     {
@@ -1126,6 +1154,16 @@ return String(value || "")
 
 }
 
+function cleanShortText(value,maxLength){
+
+return String(value || "")
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .trim()
+    .slice(0,maxLength);
+
+}
+
 function appendServerNoteLines(orderText,noteData){
 
 const lines = [
@@ -1154,7 +1192,44 @@ return lines.filter(Boolean).join("\n");
 
 }
 
-async function buildCustomerLocationData(customerLocation,customerMapLink){
+function appendServerCustomerLines(orderText,contactData){
+
+const lines = [
+    orderText
+];
+
+if(
+    contactData.customerName &&
+    !orderText.includes(contactData.customerName)
+){
+
+    lines.push(`Customer name: ${contactData.customerName}`);
+
+}
+
+if(
+    contactData.customerPhone &&
+    !orderText.includes(contactData.customerPhone)
+){
+
+    lines.push(`Customer phone: ${contactData.customerPhone}`);
+
+}
+
+if(
+    contactData.customerMapLink &&
+    !orderText.includes(contactData.customerMapLink)
+){
+
+    lines.push(`Customer map link: ${contactData.customerMapLink}`);
+
+}
+
+return lines.filter(Boolean).join("\n");
+
+}
+
+async function buildCustomerLocationData(customerLocation){
 
 const baseData = {
     customerLat: "",
@@ -1165,21 +1240,17 @@ const baseData = {
     routeDurationMin: ""
 };
 
-const parsedMapLocation =
-    customerLocation ||
-    await resolveGoogleMapsLocation(customerMapLink);
-
-if(!parsedMapLocation){
+if(!customerLocation){
 
     return baseData;
 
 }
 
 const customerLat =
-    Number(parsedMapLocation.lat);
+    Number(customerLocation.lat);
 
 const customerLng =
-    Number(parsedMapLocation.lng);
+    Number(customerLocation.lng);
 
 if(
     !isValidLatLng(customerLat,customerLng)
@@ -1231,151 +1302,6 @@ try{
     return locationData;
 
 }
-
-}
-
-async function resolveGoogleMapsLocation(value){
-
-const input =
-    String(value || "").trim();
-
-if(!input){
-
-    return null;
-
-}
-
-const directLocation =
-    parseGoogleMapsLatLng(input);
-
-if(directLocation){
-
-    return directLocation;
-
-}
-
-let parsedUrl;
-
-try{
-
-    parsedUrl = new URL(input);
-
-}catch(error){
-
-    return null;
-
-}
-
-if(!isAllowedGoogleMapsHost(parsedUrl.hostname)){
-
-    return null;
-
-}
-
-try{
-
-    const controller =
-        new AbortController();
-
-    const timeout =
-        setTimeout(()=>{
-            controller.abort();
-        },3000);
-
-    try{
-
-        const response =
-            await fetch(
-                parsedUrl.toString(),
-                {
-                    method: "GET",
-                    redirect: "follow",
-                    signal: controller.signal
-                }
-            );
-
-        return parseGoogleMapsLatLng(response.url);
-
-    }finally{
-
-        clearTimeout(timeout);
-
-    }
-
-}catch(error){
-
-    console.error("GOOGLE MAPS LOCATION PARSE FAILED",error.message);
-    return null;
-
-}
-
-}
-
-function isAllowedGoogleMapsHost(hostname){
-
-const host =
-    String(hostname || "").toLowerCase();
-
-return (
-    host === "maps.app.goo.gl" ||
-    host === "goo.gl" ||
-    host === "maps.google.com" ||
-    host === "www.google.com" ||
-    host.endsWith(".google.com")
-);
-
-}
-
-function parseGoogleMapsLatLng(value){
-
-const text =
-    String(value || "");
-
-let decodedText =
-    text;
-
-try{
-
-    decodedText =
-        decodeURIComponent(text);
-
-}catch(error){
-
-    decodedText =
-        text;
-
-}
-
-const patterns = [
-    /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
-    /[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
-    /[?&]query=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
-    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/
-];
-
-for(const pattern of patterns){
-
-    const match =
-        decodedText.match(pattern);
-
-    if(match){
-
-        const location = {
-            lat: Number(match[1]),
-            lng: Number(match[2])
-        };
-
-        if(isValidLatLng(location.lat,location.lng)){
-
-            return location;
-
-        }
-
-    }
-
-}
-
-return null;
 
 }
 

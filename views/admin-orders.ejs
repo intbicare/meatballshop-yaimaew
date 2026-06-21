@@ -199,8 +199,17 @@ h1{
                 <% } %>
             </div>
             <div class="items"><%= order.itemsText %></div>
-            <% if(order.foodNote || order.riderNote){ %>
+            <% if(order.customerName || order.customerPhone || order.customerMapLink || order.foodNote || order.riderNote){ %>
                 <div class="notes">
+                    <% if(order.customerName){ %>
+                        <div class="note"><span>Customer name</span><%= order.customerName %></div>
+                    <% } %>
+                    <% if(order.customerPhone){ %>
+                        <div class="note"><span>Phone</span><%= order.customerPhone %></div>
+                    <% } %>
+                    <% if(order.customerMapLink){ %>
+                        <div class="note"><span>Map link</span><a href="<%= order.customerMapLink %>" target="_blank" rel="noopener"><%= order.customerMapLink %></a></div>
+                    <% } %>
                     <% if(order.foodNote){ %>
                         <div class="note"><span>Food note</span><%= order.foodNote %></div>
                     <% } %>

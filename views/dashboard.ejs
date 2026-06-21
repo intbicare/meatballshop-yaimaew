@@ -561,6 +561,11 @@ input{
     line-height:1.35;
 }
 
+input.note-input{
+    min-height:44px;
+    resize:none;
+}
+
 .location-label{
     color:var(--ink);
     font-size:.86rem;
@@ -882,6 +887,10 @@ let currentOrderText = "";
 let customerLocationPromise = null;
 let selectedCustomerLocation = null;
 let customerMapLink = "";
+const customerContact = {
+    customerName: "",
+    customerPhone: ""
+};
 const orderNotes = {
     foodNote: "",
     riderNote: ""
@@ -974,9 +983,13 @@ const formatBaht = new Intl.NumberFormat("th-TH", {
 });
 
 Object.assign(translations.th, {
-    mapLinkLabel: "ลิงก์ Google Maps",
-    mapLinkPlaceholder: "วางลิงก์ตำแหน่งจาก Google Maps",
-    mapLinkHelp: "ไม่บังคับ ใช้ลิงก์ Google Maps ได้ ปลอดภัยกว่าเพราะไม่ต้องกดอนุญาตตำแหน่งในเว็บ",
+    customerNameLabel: "ชื่อลูกค้า",
+    customerNamePlaceholder: "ใส่ชื่อของคุณ",
+    customerPhoneLabel: "เบอร์โทร",
+    customerPhonePlaceholder: "ใส่เบอร์โทร",
+    mapLinkLabel: "ลิงก์แผนที่",
+    mapLinkPlaceholder: "วางลิงก์แผนที่",
+    mapLinkHelp: "ไม่บังคับ ตำแหน่งใช้เพื่อกะระยะทางจากร้านเท่านั้น",
     useCurrentLocation: "ใช้ตำแหน่งปัจจุบัน",
     locationSaved: "บันทึกตำแหน่งแล้ว",
     locationUnavailable: "ไม่สามารถอ่านตำแหน่งได้ ส่งออเดอร์ต่อได้",
@@ -988,9 +1001,13 @@ Object.assign(translations.th, {
 });
 
 Object.assign(translations.en, {
-    mapLinkLabel: "Google Maps link",
-    mapLinkPlaceholder: "Paste a Google Maps location link",
-    mapLinkHelp: "Optional. Google Maps link is safer because the website does not need location permission.",
+    customerNameLabel: "Customer name",
+    customerNamePlaceholder: "Enter your name",
+    customerPhoneLabel: "Phone number",
+    customerPhonePlaceholder: "Enter phone number",
+    mapLinkLabel: "Map link",
+    mapLinkPlaceholder: "Paste map link",
+    mapLinkHelp: "Optional. Location is used only to estimate distance from the shop.",
     useCurrentLocation: "Use current location",
     locationSaved: "Location saved.",
     locationUnavailable: "Cannot read location. You can still send the order.",
@@ -1036,7 +1053,6 @@ document.querySelectorAll("[data-close-sheet]").forEach((item) => {
 document.querySelectorAll("[data-map-link-input]").forEach((input) => {
     input.addEventListener("input", () => {
         customerMapLink = input.value.trim();
-        selectedCustomerLocation = null;
 
         document.querySelectorAll("[data-map-link-input]").forEach((otherInput) => {
             if(otherInput !== input){
@@ -1045,6 +1061,19 @@ document.querySelectorAll("[data-map-link-input]").forEach((input) => {
         });
 
         updateLocationStatus("");
+    });
+});
+
+document.querySelectorAll("[data-contact-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+        const contactKey = input.dataset.contactInput;
+        customerContact[contactKey] = input.value.trim();
+
+        document.querySelectorAll(`[data-contact-input="${contactKey}"]`).forEach((otherInput) => {
+            if(otherInput !== input){
+                otherInput.value = input.value;
+            }
+        });
     });
 });
 
@@ -1262,6 +1291,8 @@ async function prepareOrderForShop(){
                 slipImage,
                 customerLocation,
                 customerMapLink,
+                customerName: order.customerName,
+                customerPhone: order.customerPhone,
                 foodNote: order.foodNote,
                 riderNote: order.riderNote,
                 orderGate
@@ -1364,6 +1395,9 @@ function buildOrderPayload(){
         shopName,
         language: currentLanguage,
         total,
+        customerName: customerContact.customerName,
+        customerPhone: customerContact.customerPhone,
+        customerMapLink,
         foodNote: orderNotes.foodNote,
         riderNote: orderNotes.riderNote,
         createdAt: new Date().toISOString(),
@@ -1391,9 +1425,30 @@ function buildOrderText(order){
         t("paidText")
     ];
 
+    appendContactLines(lines, order);
     appendNoteLines(lines, order);
 
     return lines.join("\n");
+}
+
+function appendContactLines(lines, order){
+    const contactLines = [];
+
+    if(order.customerName){
+        contactLines.push(`${t("customerNameLabel")}: ${order.customerName}`);
+    }
+
+    if(order.customerPhone){
+        contactLines.push(`${t("customerPhoneLabel")}: ${order.customerPhone}`);
+    }
+
+    if(order.customerMapLink){
+        contactLines.push(`${t("mapLinkLabel")}: ${order.customerMapLink}`);
+    }
+
+    if(contactLines.length){
+        lines.push("", ...contactLines);
+    }
 }
 
 function appendNoteLines(lines, order){
@@ -1520,6 +1575,7 @@ function calculateSlipHeight(order){
     height += 42;
 
     measureCtx.font = "600 13px system-ui, sans-serif";
+    height += getSlipContactHeight(measureCtx, order);
     height += getSlipNoteHeight(measureCtx, order);
 
     height += 160;
@@ -1527,6 +1583,27 @@ function calculateSlipHeight(order){
     height += 28;
 
     return Math.max(720,height + 24);
+}
+
+function getSlipContactHeight(ctx, order){
+    let height = 0;
+
+    if(order.customerName){
+        height += 24;
+        height += getWrappedLineCount(ctx, `${t("customerNameLabel")}: ${order.customerName}`, 364) * 17;
+    }
+
+    if(order.customerPhone){
+        height += 24;
+        height += getWrappedLineCount(ctx, `${t("customerPhoneLabel")}: ${order.customerPhone}`, 364) * 17;
+    }
+
+    if(order.customerMapLink){
+        height += 24;
+        height += getWrappedLineCount(ctx, `${t("mapLinkLabel")}: ${order.customerMapLink}`, 364) * 17;
+    }
+
+    return height;
 }
 
 function getSlipNoteHeight(ctx, order){
@@ -1546,11 +1623,32 @@ function getSlipNoteHeight(ctx, order){
 }
 
 function drawSlipNotes(ctx, order, y){
-    if(!order.foodNote && !order.riderNote){
+    if(
+        !order.customerName &&
+        !order.customerPhone &&
+        !order.customerMapLink &&
+        !order.foodNote &&
+        !order.riderNote
+    ){
         return y;
     }
 
     ctx.font = "600 13px system-ui, sans-serif";
+
+    if(order.customerName){
+        y = drawWrappedText(ctx, `${t("customerNameLabel")}: ${order.customerName}`, 18, y, 364, 17);
+        y += 7;
+    }
+
+    if(order.customerPhone){
+        y = drawWrappedText(ctx, `${t("customerPhoneLabel")}: ${order.customerPhone}`, 18, y, 364, 17);
+        y += 7;
+    }
+
+    if(order.customerMapLink){
+        y = drawWrappedText(ctx, `${t("mapLinkLabel")}: ${order.customerMapLink}`, 18, y, 364, 17);
+        y += 7;
+    }
 
     if(order.foodNote){
         y = drawWrappedText(ctx, `${t("foodNoteLabel")}: ${order.foodNote}`, 18, y, 364, 17);
@@ -1684,10 +1782,6 @@ async function useCurrentLocation(){
 
     if(location){
         selectedCustomerLocation = location;
-        customerMapLink = "";
-        document.querySelectorAll("[data-map-link-input]").forEach((input) => {
-            input.value = "";
-        });
         updateLocationStatus(t("locationSaved"));
     }else{
         updateLocationStatus(t("locationUnavailable"));
@@ -1724,6 +1818,15 @@ function getCustomerLocationOnce(){
     });
 
     return customerLocationPromise;
+}
+
+if(!isMenuOnly){
+    getCustomerLocationOnce().then((location) => {
+        if(location){
+            selectedCustomerLocation = location;
+            updateLocationStatus(t("locationSaved"));
+        }
+    });
 }
 
 function getItemCount(){
